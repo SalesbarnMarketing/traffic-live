@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // App State: synced state partitions
+    match /app_state/{stateKey} {
+      allow read, write: if true;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Community Heroes Reputation Profiles & Leaderboard
+    match /community_heroes/{heroId} {
+      allow read, write: if true;
+    }
+
+    // Adverts & Banner Rotation
+    match /adverts/{adId} {
+      allow read, write: if true;
+    }
+
+    // Ad Banners (individual persistent banners)
+    match /ad_banners/{bannerId} {
+      allow read, write: if true;
+    }
+
+    // Advertising Orders
+    match /ad_orders/{orderId} {
+      allow read, write: if true;
+    }
+    match /advertising_orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // Posts & Feed items
+    match /posts/{postId} {
+      allow read, write: if true;
+    }
+
+    // Incident Categories & Alert Banners (individual persistent configurations)
+    match /category_configs/{categoryId} {
+      allow read, write: if true;
+    }
+
+    // Incident Reports
+    match /reports/{reportId} {
+      allow read, write: if true;
+    }
+
+    // Emergency SOS Calls & Dispatches
+    match /sos/{sosId} {
+      allow read, write: if true;
+    }
+  }
+}

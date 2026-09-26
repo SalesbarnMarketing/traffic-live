@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" style="background-color: #070A10; height: 100%;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>LiveTrafficNPC - Highway Watch & Traffic Network</title>
+    <meta name="description" content="Real-time South African traffic alerts, highway spiking traps warnings, and emergency dispatch." />
+    <meta name="theme-color" content="#070A10" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LiveTraffic" />
+    <meta name="application-name" content="LiveTrafficNPC" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="shortcut icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta property="og:image" content="/traffic-logo.png" />
+    <meta property="og:title" content="LiveTrafficNPC - Highway Watch & Traffic Network" />
+    <meta property="og:description" content="Real-time South African traffic alerts, highway spiking traps warnings, and emergency dispatch." />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  </head>
+  <body style="background-color: #070A10; color: #E2E8F0; margin: 0; padding: 0; height: 100%; overflow: hidden;">
+    <div id="root" style="height: 100%; width: 100%;">
+      <!-- Instant pre-hydration splash while JS downloads on slow connections -->
+      <div style="height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 35%, #152238 0%, #070A10 70%); font-family: system-ui, -apple-system, sans-serif; text-align: center; padding: 24px; box-sizing: border-box;">
+        <div style="width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+          <img src="/traffic-logo.png" alt="Live Traffic NPC" style="width: 100%; height: 100%; object-fit: contain; border-radius: 24px;" />
+        </div>
+        <div style="color: #D4A237; font-size: 11px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">LIVE TRAFFIC NPC</div>
+        <div style="color: #94A3B8; font-size: 13px; font-weight: 500;">Loading safety radar network...</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

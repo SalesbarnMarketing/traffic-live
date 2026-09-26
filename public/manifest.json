@@ -1,0 +1,62 @@
+{
+  "name": "LiveTrafficNPC - Highway Watch & Traffic Network",
+  "short_name": "LiveTraffic",
+  "description": "Real-time South African traffic alerts, road spiking warnings, and emergency dispatch network.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070A10",
+  "theme_color": "#070A10",
+  "orientation": "portrait-primary",
+  "categories": ["navigation", "travel", "utilities"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Emergency SOS",
+      "short_name": "SOS",
+      "description": "Trigger instant emergency dispatch alert",
+      "url": "/?action=sos",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Live Traffic Map",
+      "short_name": "Map",
+      "description": "View live radar and hazard reports",
+      "url": "/?tab=map",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Spike Trap Warnings",
+      "short_name": "Spikes",
+      "description": "Check highway spiking traps and hotspot alerts",
+      "url": "/?tab=feed&category=spiking",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

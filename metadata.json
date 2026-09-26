@@ -1,0 +1,6 @@
+{
+  "name": "LiveTrafficNPC",
+  "description": "Real-time highway watch, hazard alerts, spiking trap warnings, and traffic updates powered by LiveTrafficNPC.",
+  "requestFramePermissions": ["geolocation", "camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

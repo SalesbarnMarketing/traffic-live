@@ -1,0 +1,232 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered user or administrator account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "surname": { "type": "string" },
+        "email": { "type": "string" },
+        "cellNumber": { "type": "string" },
+        "companyName": { "type": "string" },
+        "businessWebsite": { "type": "string" },
+        "businessIndustry": { "type": "string" },
+        "businessPhone": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "role": { "type": "string", "enum": ["super_admin", "admin", "moderator", "patrol", "advertiser", "user"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "registeredAt": { "type": "string" },
+        "lastLoginAt": { "type": "string" }
+      },
+      "required": ["id", "email", "cellNumber", "fullName"]
+    },
+    "AdvertisementBanner": {
+      "title": "AdvertisementBanner",
+      "description": "Live advertisement banner record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "targetUrl": { "type": "string" },
+        "sponsorName": { "type": "string" },
+        "sponsorBadge": { "type": "string" },
+        "ctaText": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "position": { "type": "string", "enum": ["top", "inline", "both"] },
+        "repeatInterval": { "type": "number" },
+        "impressions": { "type": "number" },
+        "clicks": { "type": "number" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "durationDays": { "type": "number" },
+        "status": { "type": "string" },
+        "approvalStatus": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "paymentReceived": { "type": "boolean" },
+        "amount": { "type": "number" },
+        "packageName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "imageUrl", "sponsorName", "enabled"]
+    },
+    "AdvertisingOrder": {
+      "title": "AdvertisingOrder",
+      "description": "Ad package purchase and booking order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "packageId": { "type": "string" },
+        "packageName": { "type": "string" },
+        "amount": { "type": "number" },
+        "businessName": { "type": "string" },
+        "contactName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "packageName", "amount", "businessName", "email"]
+    },
+    "FeedItem": {
+      "title": "FeedItem",
+      "description": "Admin or community traffic post and alert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "source": { "type": "string" },
+        "type": { "type": "string" },
+        "urgency": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "verified": { "type": "boolean" }
+      },
+      "required": ["id", "content", "timestamp"]
+    },
+    "IncidentReport": {
+      "title": "IncidentReport",
+      "description": "User or patrol submitted incident report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "corridor": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "type", "title", "timestamp"]
+    },
+    "EmergencySOS": {
+      "title": "EmergencySOS",
+      "description": "Emergency SOS motorist distress call and patrol dispatch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "callRef": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "vehicleInfo": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "locationName": { "type": "string" },
+        "emergencyType": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "name", "phone", "latitude", "longitude", "status"]
+    },
+    "CategoryConfig": {
+      "title": "CategoryConfig",
+      "description": "Incident category and panoramic alert banner configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "badge": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "iconName": { "type": "string" },
+        "isSystemDefault": { "type": "boolean" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "label", "badge"]
+    },
+    "StoreState": {
+      "title": "StoreState",
+      "description": "Full synchronized server state partition",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "data": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["key"]
+    },
+    "CommunityHeroProfile": {
+      "title": "CommunityHeroProfile",
+      "description": "Live Traffic community reputation and hero profile",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "surname": { "type": "string" },
+        "email": { "type": "string" },
+        "tier": { "type": "string" },
+        "tierIcon": { "type": "string" },
+        "totalReputation": { "type": "number" },
+        "incidentReportsCount": { "type": "number" },
+        "approvedReportsCount": { "type": "number" },
+        "verificationsCount": { "type": "number" },
+        "warningsCount": { "type": "number" },
+        "emergencyAssistsCount": { "type": "number" },
+        "helpfulUpdatesCount": { "type": "number" },
+        "locationCorrectionsCount": { "type": "number" },
+        "accuracyRate": { "type": "number" },
+        "memberSince": { "type": "string" },
+        "badges": { "type": "array" },
+        "recentActivity": { "type": "array" }
+      },
+      "required": ["userId", "email", "totalReputation"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Registered user accounts collection"
+    },
+    "/community_heroes/{heroId}": {
+      "schema": { "$ref": "#/entities/CommunityHeroProfile" },
+      "description": "Community Heroes reputation profiles and leaderboard ranking"
+    },
+    "/category_configs/{categoryId}": {
+      "schema": { "$ref": "#/entities/CategoryConfig" },
+      "description": "Incident categories and default alert banner configurations"
+    },
+    "/adverts/{adId}": {
+      "schema": { "$ref": "#/entities/AdvertisementBanner" },
+      "description": "Live advertisement banners"
+    },
+    "/ad_banners/{bannerId}": {
+      "schema": { "$ref": "#/entities/AdvertisementBanner" },
+      "description": "Persistent individual advertisement banners collection"
+    },
+    "/ad_orders/{orderId}": {
+      "schema": { "$ref": "#/entities/AdvertisingOrder" },
+      "description": "Advertiser orders"
+    },
+    "/advertising_orders/{orderId}": {
+      "schema": { "$ref": "#/entities/AdvertisingOrder" },
+      "description": "Advertiser orders mirror collection"
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/FeedItem" },
+      "description": "Admin posts and live alerts"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/IncidentReport" },
+      "description": "Traffic and hazard reports"
+    },
+    "/sos/{sosId}": {
+      "schema": { "$ref": "#/entities/EmergencySOS" },
+      "description": "Emergency SOS motorist requests"
+    },
+    "/app_state/{stateKey}": {
+      "schema": { "$ref": "#/entities/StoreState" },
+      "description": "Aggregated cache documents for ultra-low read cost zero-tier syncing"
+    }
+  }
+}

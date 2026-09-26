@@ -1,0 +1,349 @@
+@import "tailwindcss";
+
+html {
+  font-size: 17.5px; /* Scales all rem-based typography (~109%) one notch up across the entire app */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html, body, #root {
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  background-color: #070A10;
+  color: #E2E8F0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Elevate ultra-small badges and labels for crystal-clear readability */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  overscroll-behavior-y: contain !important;
+}
+
+.text-\[8px\],
+.text-\[9px\] {
+  font-size: 0.72rem !important; /* ~12.5px */
+  line-height: 1.25 !important;
+}
+
+.text-\[10px\] {
+  font-size: 0.76rem !important; /* ~13.3px */
+  line-height: 1.3 !important;
+}
+
+.text-\[11px\] {
+  font-size: 0.82rem !important; /* ~14.3px */
+  line-height: 1.35 !important;
+}
+
+.text-\[13px\] {
+  font-size: 0.92rem !important; /* ~16.1px */
+}
+
+/* Map Zoom Controls alignment & styling */
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 25 !important;
+}
+
+.leaflet-bottom.leaflet-right {
+  margin-bottom: 108px !important;
+  margin-right: 14px !important;
+}
+
+.leaflet-bar {
+  border: 1.5px solid rgba(229, 184, 66, 0.75) !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.95) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.leaflet-bar a {
+  background-color: #070A10 !important;
+  color: #D4A237 !important;
+  border-bottom: 1px solid rgba(229, 184, 66, 0.35) !important;
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 1 !important;
+  font-size: 22px !important;
+  font-weight: 900 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transition: all 0.15s ease !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: #D4A237 !important;
+  color: #070A10 !important;
+}
+
+.leaflet-bar a:last-child {
+  border-bottom: none !important;
+}
+
+/* Disable and override browser autofill blue/yellow background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #05080E inset !important;
+  -webkit-text-fill-color: #F8FAFC !important;
+  caret-color: #F8FAFC !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Custom Scrollbar for ivory/cream cards and dark containers */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(6, 11, 20, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(229, 184, 66, 0.55);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(229, 184, 66, 0.85);
+}
+
+/* Green Flash Border Animation for Sponsored Ads */
+@keyframes green-border-flash {
+  0%, 100% {
+    border-color: rgba(16, 185, 129, 0.45);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+  50% {
+    border-color: rgba(52, 211, 153, 0.95);
+    box-shadow: 0 0 16px 2px rgba(16, 185, 129, 0.35);
+  }
+}
+
+.animate-green-flash {
+  animation: green-border-flash 2.5s ease-in-out infinite;
+}
+
+/* Subtle Cyan Pulse Animation for Share App Card */
+@keyframes cyan-border-pulse {
+  0%, 100% {
+    border-color: rgba(6, 182, 212, 0.32);
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+  }
+  50% {
+    border-color: rgba(34, 211, 238, 0.75);
+    box-shadow: 0 0 16px 2px rgba(6, 182, 212, 0.28);
+  }
+}
+
+.animate-cyan-pulse {
+  animation: cyan-border-pulse 3s ease-in-out infinite;
+}
+
+/* Ultra-smooth attention pulse keyframes for Share & Techrix cards (60s timer trigger) */
+@keyframes attention-shrink-pulse-cyan {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    border-color: rgba(6, 182, 212, 0.4);
+  }
+  25% {
+    transform: scale(0.92);
+    box-shadow: 0 0 32px 4px rgba(6, 182, 212, 0.65), 0 0 0 2px rgba(34, 211, 238, 0.9);
+    border-color: rgba(34, 211, 238, 1);
+  }
+  50% {
+    transform: scale(0.935);
+    box-shadow: 0 0 40px 6px rgba(6, 182, 212, 0.8), 0 0 0 3px rgba(34, 211, 238, 1);
+    border-color: rgba(34, 211, 238, 1);
+  }
+  75% {
+    transform: scale(1.02);
+    box-shadow: 0 0 24px 2px rgba(6, 182, 212, 0.45), 0 0 0 1px rgba(34, 211, 238, 0.6);
+    border-color: rgba(34, 211, 238, 0.85);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    border-color: rgba(6, 182, 212, 0.4);
+  }
+}
+
+@keyframes attention-shrink-pulse-emerald {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    border-color: rgba(16, 185, 129, 0.45);
+  }
+  25% {
+    transform: scale(0.92);
+    box-shadow: 0 0 32px 4px rgba(16, 185, 129, 0.7), 0 0 0 2px rgba(52, 211, 153, 0.9);
+    border-color: rgba(52, 211, 153, 1);
+  }
+  50% {
+    transform: scale(0.935);
+    box-shadow: 0 0 40px 6px rgba(16, 185, 129, 0.85), 0 0 0 3px rgba(52, 211, 153, 1);
+    border-color: rgba(52, 211, 153, 1);
+  }
+  75% {
+    transform: scale(1.02);
+    box-shadow: 0 0 24px 2px rgba(16, 185, 129, 0.5), 0 0 0 1px rgba(52, 211, 153, 0.6);
+    border-color: rgba(52, 211, 153, 0.85);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    border-color: rgba(16, 185, 129, 0.45);
+  }
+}
+
+.animate-attention-shrink-cyan {
+  animation: attention-shrink-pulse-cyan 2.4s cubic-bezier(0.25, 1, 0.5, 1) both;
+  will-change: transform, box-shadow, border-color;
+  transform: translateZ(0);
+}
+
+.animate-attention-shrink-emerald {
+  animation: attention-shrink-pulse-emerald 2.4s cubic-bezier(0.25, 1, 0.5, 1) both;
+  will-change: transform, box-shadow, border-color;
+  transform: translateZ(0);
+}
+
+/* Subtle CSS Fade-In Animation for New Feed Items during Dynamic Refreshes */
+@keyframes feed-item-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-feed-fade-in {
+  animation: feed-item-fade-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes feed-new-item-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(212, 162, 55, 0.4);
+    border-color: rgba(212, 162, 55, 0.6);
+  }
+  40% {
+    box-shadow: 0 0 16px 2px rgba(212, 162, 55, 0.25);
+    border-color: rgba(212, 162, 55, 0.75);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(212, 162, 55, 0);
+  }
+}
+
+.animate-new-feed-highlight {
+  animation: feed-item-fade-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both,
+             feed-new-item-glow 3.5s ease-out both;
+  will-change: opacity, transform, box-shadow;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-feed-fade-in,
+  .animate-new-feed-highlight {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Ultra-Smooth Keyframe Animations */
+@keyframes smooth-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.98) translateZ(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+@keyframes smooth-modal-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px) translateZ(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0) translateZ(0);
+  }
+}
+
+@keyframes smooth-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) translateZ(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+@keyframes smooth-beacon-ping {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-fadeIn,
+.animate-fade-in {
+  animation: smooth-fade-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-modal-pop {
+  animation: smooth-modal-pop 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-slide-up {
+  animation: smooth-slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-beacon {
+  animation: smooth-beacon-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
