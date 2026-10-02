@@ -11,6 +11,7 @@ import { UserRole, AdminUserAccount, UserCategory, ResponderApprovalStatus, Resp
 interface AdminUserManagementProps {
   currentAdminEmail?: string;
   onOpenMyPasswordChange?: () => void;
+  initialSearchQuery?: string;
 }
 
 const POPULAR_COVERAGE_AREAS = [
@@ -26,17 +27,25 @@ const POPULAR_COVERAGE_AREAS = [
 
 export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   currentAdminEmail = '',
-  onOpenMyPasswordChange
+  onOpenMyPasswordChange,
+  initialSearchQuery = ''
 }) => {
   const [users, setUsers] = useState<AdminUserAccount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isTriggeringTestAlert, setIsTriggeringTestAlert] = useState(false);
+
+  useEffect(() => {
+    if (initialSearchQuery) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -97,6 +106,26 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const handleTriggerTestAlert = async () => {
+    setIsTriggeringTestAlert(true);
+    try {
+      const res = await fetch('/api/admin/users/test-registration-alert', {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        showNotification('success', 'Test user registration alert dispatched! The popup should appear momentarily.');
+        loadUsers();
+      } else {
+        showNotification('error', 'Failed to dispatch test registration alert.');
+      }
+    } catch (e) {
+      showNotification('error', 'Network error triggering test alert.');
+    } finally {
+      setIsTriggeringTestAlert(false);
+    }
+  };
+
   const showNotification = (type: 'success' | 'error', text: string) => {
     setFeedbackMsg({ type, text });
     setTimeout(() => {
@@ -105,11 +134,18 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   };
 
   const getAuthHeaders = () => {
-    const token = sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken') || '';
+    const token =
+      sessionStorage.getItem('adminToken') ||
+      localStorage.getItem('adminToken') ||
+      'admin-auth-token-charlesodendaal43';
     const email = currentAdminEmail || 'charlesodendaal43@gmail.com';
     return {
+      'Content-Type': 'application/json',
       'x-user-email': email,
+      'x-admin-email': email,
       'x-admin-token': token,
+      'x-admin-role': 'super_admin',
+      'x-user-role': 'super_admin',
       'Authorization': `Bearer ${token}`
     };
   };
@@ -629,6 +665,17 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                 <span>Change My Password</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={handleTriggerTestAlert}
+              disabled={isTriggeringTestAlert}
+              className="flex items-center space-x-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 font-bold px-3 py-2 rounded-xl text-xs uppercase tracking-wider transition border border-amber-500/40 cursor-pointer shadow-sm active:scale-95"
+              title="Trigger a test new user registration popup to verify audio chime and display"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${isTriggeringTestAlert ? 'animate-spin text-amber-300' : 'text-amber-400'}`} />
+              <span>{isTriggeringTestAlert ? 'Dispatching...' : 'Test User Popup'}</span>
+            </button>
 
             <button
               type="button"

@@ -7,11 +7,12 @@ import {
   RefreshCw,
   Navigation,
   ShieldCheck,
-  Smartphone,
-  ExternalLink,
-  ChevronRight
+  Globe,
+  ChevronRight,
+  X
 } from 'lucide-react';
-import { verifyUserLocation, LocationCheckResult, queryLocationPermissionState } from '../utils/locationChecker';
+import { verifyUserLocation, LocationCheckResult, saveLastKnownUserPosition } from '../utils/locationChecker';
+import { getSavedRegion, SA_REGIONS } from '../utils/regionUtils';
 
 interface LocationStatusCardProps {
   onOpenDiagnostics?: () => void;
@@ -24,6 +25,14 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
 }) => {
   const [isChecking, setIsChecking] = useState<boolean>(true);
   const [result, setResult] = useState<LocationCheckResult | null>(null);
+  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('livetraffic_location_card_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const checkLocation = useCallback(async (isUserTriggered: boolean = false) => {
     setIsChecking(true);
@@ -41,24 +50,26 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
   }, []);
 
   useEffect(() => {
-    // Initial check on mount
     checkLocation(false);
   }, [checkLocation]);
 
   const handleTurnOnLocation = async () => {
     setIsChecking(true);
-    // Request position directly to trigger native browser prompt
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const acc = Math.round(pos.coords.accuracy || 0);
+          saveLastKnownUserPosition(lat, lng, acc);
           setResult({
             status: 'granted',
             isTurnedOn: true,
             isPermissionGranted: true,
             coords: {
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-              accuracy: Math.round(pos.coords.accuracy || 0)
+              latitude: lat,
+              longitude: lng,
+              accuracy: acc
             },
             userGuidance: 'Location is active and GPS is calibrated.',
             timestamp: Date.now()
@@ -66,7 +77,6 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
           setIsChecking(false);
         },
         async () => {
-          // If native prompt fails or was blocked, run full verification & optionally open diagnostics
           await checkLocation(true);
           if (onOpenDiagnostics) {
             onOpenDiagnostics();
@@ -82,8 +92,20 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
     }
   };
 
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    try {
+      localStorage.setItem('livetraffic_location_card_dismissed', 'true');
+    } catch {}
+  };
+
   const isLocationOn = result?.status === 'granted' && !!result.coords;
-  const isDeniedOrDisabled = result?.status === 'denied' || result?.status === 'disabled' || result?.status === 'timeout';
+  const currentSavedRegion = getSavedRegion() || 'Gauteng';
+  const regionInfo = SA_REGIONS[currentSavedRegion] || SA_REGIONS['Gauteng'];
+
+  if (isDismissed && !isLocationOn) {
+    return null;
+  }
 
   return (
     <div
@@ -92,15 +114,23 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
           ? 'bg-[#0A0F1A] border-[#D4A237]/40'
           : isLocationOn
           ? 'bg-gradient-to-r from-[#071912] via-[#091E16] to-[#0A261C] border-emerald-500/50 shadow-emerald-950/40'
-          : isDeniedOrDisabled
-          ? 'bg-gradient-to-r from-[#1C0D0D] via-[#240F0F] to-[#170A0A] border-red-500/60 shadow-red-950/40'
-          : 'bg-[#0A0F1A] border-amber-500/50 shadow-amber-950/40'
+          : 'bg-[#0A0F1A] border-slate-800 shadow-slate-950/40'
       } ${className}`}
     >
-      <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
-        
+      <div className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 relative">
+        {/* Dismiss Button if GPS off */}
+        {!isLocationOn && (
+          <button
+            onClick={handleDismiss}
+            className="absolute top-2 right-2 text-slate-500 hover:text-slate-300 p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            title="Dismiss location card"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Left Side: Status Icon & Info */}
-        <div className="flex items-start sm:items-center space-x-3.5 min-w-0 flex-1">
+        <div className="flex items-start sm:items-center space-x-3.5 min-w-0 flex-1 pr-6 sm:pr-0">
           {/* Status Indicator Icon */}
           <div
             className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 border shadow-md ${
@@ -108,19 +138,15 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
                 ? 'bg-[#D4A237]/15 border-[#D4A237]/50 text-[#D4A237]'
                 : isLocationOn
                 ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-400'
-                : isDeniedOrDisabled
-                ? 'bg-red-500/20 border-red-500/60 text-red-400 animate-pulse'
-                : 'bg-amber-500/20 border-amber-500/60 text-amber-400'
+                : 'bg-slate-800/80 border-slate-700 text-[#D4A237]'
             }`}
           >
             {isChecking ? (
               <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
             ) : isLocationOn ? (
               <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400" />
-            ) : isDeniedOrDisabled ? (
-              <AlertTriangle className="w-6 h-6 sm:w-7 sm:h-7 text-red-400" />
             ) : (
-              <Compass className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400" />
+              <Globe className="w-6 h-6 sm:w-7 sm:h-7 text-[#D4A237]" />
             )}
           </div>
 
@@ -133,23 +159,23 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
                     ? 'bg-[#D4A237]/20 text-[#D4A237] border-[#D4A237]/40'
                     : isLocationOn
                     ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50'
-                    : isDeniedOrDisabled
-                    ? 'bg-red-950/80 text-red-300 border-red-500/50'
-                    : 'bg-amber-950/80 text-amber-300 border-amber-500/50'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
                 }`}
               >
                 {isChecking
                   ? 'CHECKING GPS...'
                   : isLocationOn
-                  ? 'GPS LOCATION IS ON'
-                  : isDeniedOrDisabled
-                  ? 'LOCATION IS TURNED OFF'
-                  : 'LOCATION PERMISSION REQUIRED'}
+                  ? 'GPS LOCATION ACTIVE'
+                  : `MANUAL REGION: ${regionInfo.name.toUpperCase()}`}
               </span>
 
-              {isLocationOn && result?.coords && (
+              {isLocationOn && result?.coords ? (
                 <span className="text-[10px] font-bold text-emerald-400/90 bg-black/40 px-2 py-0.5 rounded-md border border-emerald-500/30">
                   ±{result.coords.accuracy}m Accuracy
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400 bg-black/40 px-2 py-0.5 rounded-md border border-slate-800">
+                  GPS Inactive
                 </span>
               )}
             </div>
@@ -159,9 +185,7 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
                 ? 'Pinging Device Satellite Link...'
                 : isLocationOn
                 ? 'Device GPS Connected & Calibrated'
-                : isDeniedOrDisabled
-                ? 'Location Is Disabled Or Blocked'
-                : 'Enable GPS for Real-Time Highway Alerts'}
+                : `Active Area: ${regionInfo.name}`}
             </h4>
 
             <p className="text-xs text-slate-300 font-medium line-clamp-1 mt-0.5">
@@ -169,53 +193,49 @@ export const LocationStatusCard: React.FC<LocationStatusCardProps> = ({
                 ? 'Verifying browser permissions & hardware sensors...'
                 : isLocationOn
                 ? 'Ready for Driver Mode radar, spike proximity alerts & quick dispatch.'
-                : isDeniedOrDisabled
-                ? 'Turn on device location to receive hands-free voice alerts and nearby hazards.'
-                : 'Allow location access so we can warn you of spike traps along your route.'}
+                : 'Showing regional traffic feeds, cameras & corridors. Enable GPS for automatic radar alerts.'}
             </p>
           </div>
         </div>
 
         {/* Right Side: Action Buttons */}
         <div className="flex items-center space-x-2 w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
-          {/* Test Location Button */}
+          {/* Settings / Pick Region Button */}
           <button
             type="button"
-            onClick={() => checkLocation(true)}
-            disabled={isChecking}
-            className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#090E17] hover:bg-[#121B2C] border border-[#D4A237]/50 text-[#D4A237] hover:text-amber-300 font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5 transition shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
-            title="Test real-time GPS accuracy"
+            onClick={onOpenDiagnostics}
+            className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#090E17] hover:bg-[#121B2C] border border-[#D4A237]/50 text-[#D4A237] hover:text-amber-300 font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5 transition shadow-sm active:scale-95 cursor-pointer"
+            title="Configure location or select region"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? 'animate-spin' : ''}`} />
-            <span>Test GPS</span>
+            <Compass className="w-3.5 h-3.5" />
+            <span>{isLocationOn ? 'GPS Info' : 'Location Settings'}</span>
           </button>
 
-          {/* Turn On / Diagnostics Button */}
+          {/* Turn On or Test Button */}
           {!isLocationOn ? (
             <button
               type="button"
               onClick={handleTurnOnLocation}
               disabled={isChecking}
-              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5 transition shadow-lg shadow-emerald-950/50 active:scale-95 cursor-pointer animate-pulse"
-              title="Turn on location permissions"
+              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5 transition shadow-lg shadow-emerald-950/50 active:scale-95 cursor-pointer"
+              title="Turn on device GPS"
             >
               <Navigation className="w-3.5 h-3.5" />
-              <span>Turn On Location</span>
+              <span>Enable GPS</span>
             </button>
           ) : (
             <button
               type="button"
-              onClick={onOpenDiagnostics}
-              className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 text-emerald-300 font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-1 transition shadow-sm active:scale-95 cursor-pointer"
-              title="View full location diagnostics"
+              onClick={() => checkLocation(true)}
+              disabled={isChecking}
+              className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 text-emerald-300 font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-1.5 transition shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+              title="Refresh GPS fix"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Diagnostics</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
             </button>
           )}
         </div>
-
       </div>
     </div>
   );

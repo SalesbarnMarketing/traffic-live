@@ -640,10 +640,31 @@ export async function autoDetectUserRegion(): Promise<{
         // Fallback attempt: Cellular / Wifi tower cached fix (very fast & reliable on Android)
         navigator.geolocation.getCurrentPosition(
           handleSuccess,
-          (fallbackErr) => {
+          async (fallbackErr) => {
             if (resolved) return;
-            resolved = true;
             console.warn('Fallback geolocation notice:', fallbackErr.message);
+
+            // Try IP-based location fallback before giving up
+            try {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 2500);
+              const res = await fetch('/api/user-ip-location', { signal: controller.signal });
+              clearTimeout(timer);
+              if (res.ok) {
+                const ipData = await res.json();
+                if (ipData && typeof ipData.lat === 'number' && typeof ipData.lng === 'number') {
+                  const detected = detectRegionFromCoords(ipData.lat, ipData.lng);
+                  saveDetectedRegion(detected);
+                  resolved = true;
+                  return resolve({
+                    regionId: detected,
+                    coords: { lat: ipData.lat, lng: ipData.lng }
+                  });
+                }
+              }
+            } catch (e) {}
+
+            resolved = true;
             const fallback = getSavedRegion() || 'all';
             resolve({
               regionId: fallback,

@@ -23,6 +23,76 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
 
   const changes = [
     {
+      id: 'smtp_integration',
+      category: 'notifications',
+      badge: 'Email Infrastructure',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+      icon: ShieldCheck,
+      iconColor: 'text-emerald-400 bg-emerald-950/40 border-emerald-500/30',
+      title: 'Dedicated SMTP Outbound Mail Gateway (techrix365.com)',
+      description: 'Integrated live outgoing transactional SMTP mail delivery (mail.techrix365.com via SSL/TLS 465) for branded password reset emails, account recovery, and verification links directly to motorist inboxes.'
+    },
+    {
+      id: 'feed_action_bar_cleanup',
+      category: 'feed',
+      badge: 'Feed UX Polish',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      icon: Layers,
+      iconColor: 'text-cyan-400 bg-cyan-950/40 border-cyan-500/30',
+      title: 'Streamlined Incident Action Bar & Partner Card',
+      description: 'Cleaned up incident cards by removing legacy external corridor source buttons, streamlining WhatsApp / X sharing, and refreshing the Techrix365 featured partner card with high-impact business copy.'
+    },
+    {
+      id: 'deterministic_version_updater',
+      category: 'notifications',
+      badge: 'App Updates',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+      icon: RefreshCw,
+      iconColor: 'text-indigo-400 bg-indigo-950/40 border-indigo-500/30',
+      title: 'Deterministic Release Versioning & Update Engine',
+      description: 'Upgraded version-checking architecture to eliminate false restart alerts, ensuring update notifications only fire when an official new version release is published.'
+    },
+    {
+      id: 'wall_of_heroes',
+      category: 'visuals',
+      badge: 'Community Heroes',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+      icon: Sparkles,
+      iconColor: 'text-amber-400 bg-amber-950/40 border-amber-500/30',
+      title: 'Wall of Verified Traffic Heroes & Responders',
+      description: 'Launched a dedicated Wall of Heroes modal showcasing verified traffic marshals, patrollers, emergency responders, and top road reporters with badge tiers, contribution counts, and direct community recognition.'
+    },
+    {
+      id: 'mobile_dashboard_shortcuts',
+      category: 'visuals',
+      badge: 'Mobile UX Polish',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      icon: Smartphone,
+      iconColor: 'text-cyan-400 bg-cyan-950/40 border-cyan-500/30',
+      title: 'Mobile Dashboard Shortcuts & Button Layout Refinements',
+      description: 'Refined mobile dashboard quick shortcuts with zero-truncation responsive wrapping, balanced button padding, and optimized icons to ensure labels never get cut off on small or narrow mobile displays.'
+    },
+    {
+      id: 'highway_header_cleanup',
+      category: 'feed',
+      badge: 'Streamlined UI',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+      icon: Layers,
+      iconColor: 'text-indigo-400 bg-indigo-950/40 border-indigo-500/30',
+      title: 'Highway Travel Times Header Streamline & WhatsApp Share',
+      description: 'Streamlined the Highway Travel Times section header by removing redundant clutter buttons, keeping the focus squarely on live commute ETAs while adding a high-visibility compact WhatsApp share icon on mobile.'
+    },
+    {
+      id: 'persistence_data_loss_hardening',
+      category: 'persistence',
+      badge: 'Cloud Resilience',
+      badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+      icon: ShieldCheck,
+      iconColor: 'text-blue-400 bg-blue-950/40 border-blue-500/30',
+      title: 'Zero Data Loss Engine & Firestore Persistence Hardening',
+      description: 'Enhanced database synchronization across Google Cloud Firestore and server persistence layers. User accounts, advertiser campaigns, feedback items, motorist endorsements, hero verifications, and custom category alerts are safeguarded against data loss on server reboots and new version deployments.'
+    },
+    {
       id: 'pwa_icons',
       category: 'visuals',
       badge: 'PWA & Mobile',
@@ -30,7 +100,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       icon: Smartphone,
       iconColor: 'text-amber-400 bg-amber-950/40 border-amber-500/30',
       title: 'Local High-Resolution PWA Icons & Launcher Assets',
-      description: 'Replaced external third-party icons with fully self-hosted, offline-ready application assets. Added standard 192x192 and 512x512 app icons, Android adaptive maskable launcher icons with safe margins, Apple Touch icons (180x180), and favicons to ensure the app displays a crisp, branded icon when installed on any phone, tablet, or desktop.'
+      description: 'Bundled offline-ready local application assets with 192x192, 512x512 standard PWA icons, Android adaptive maskable launcher icons with safe margins, Apple Touch icons (180x180), and high-contrast favicons.'
     },
     {
       id: 'push_sounds',
@@ -40,7 +110,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       icon: Volume2,
       iconColor: 'text-cyan-400 bg-cyan-950/40 border-cyan-500/30',
       title: 'Synthesized Alert Sound Profiles & Audio Engine',
-      description: 'Introduced Web Audio API synthesized alert chimes with zero audio latency. Motorists and responders can choose between Authentic Car Horns, Police Siren wails, Alert Chimes, Radar Beeps, Traffic Whistles, and Dual-Tone SOS Sirens with instant in-modal preview.'
+      description: 'Introduced Web Audio API synthesized alert chimes with zero audio latency: Car Horns, Police Siren wails, Alert Chimes, Radar Beeps, Traffic Whistles, and Dual-Tone SOS Sirens with instant live audio preview.'
     },
     {
       id: 'push_prefs',
@@ -50,7 +120,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       icon: Bell,
       iconColor: 'text-emerald-400 bg-emerald-950/40 border-emerald-500/30',
       title: 'Granular Notification Preferences & Provincial Filters',
-      description: 'Added a dedicated Push Notification Preferences center accessible via the top-bar Bell icon and Dashboard. Users can configure province-specific corridors (Gauteng, Western Cape, KZN, etc.), toggle hazard types (Spike traps, SOS dispatches, traffic alerts), and test notification delivery.'
+      description: 'Dedicated Push Notification Preferences center accessible via the top-bar Bell icon and Dashboard. Users can configure province-specific corridors (Gauteng, Western Cape, KZN, etc.) and toggle hazard categories.'
     },
     {
       id: 'gbv_assist',
@@ -59,8 +129,8 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
       icon: HeartHandshake,
       iconColor: 'text-purple-300 bg-purple-950/60 border-purple-500/40',
-      title: 'GBV (Gender-Based Violence) Emergency Assist in Top Nav',
-      description: 'Added a dedicated, confidential GBV Assist button in the top navigation bar right before the Emergency SOS button. Features priority dispatching, instant hotline dialing to the National GBV Command Centre (0800 428 428) and SAPS (10111), and high-visibility map routing for vulnerable motorists.'
+      title: 'GBV Emergency Assist in Top Navigation',
+      description: 'Added a dedicated, confidential GBV Assist button in the top navigation bar right before the Emergency SOS button with instant hotline dialing (0800 428 428) and priority response routing.'
     },
     {
       id: 'window',
@@ -69,8 +139,8 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
       icon: Clock,
       iconColor: 'text-amber-400 bg-amber-950/40 border-amber-500/30',
-      title: '6-Hour Rolling Feed Window (Replaces 24 Hours)',
-      description: 'Incident highlights, broadcast notices, and community reports now strictly observe a 6-hour operational window across the entire app. Posts older than 6 hours are automatically cleared, ensuring only current, active road conditions are shown at the top of your feed.'
+      title: '6-Hour Rolling Feed Window',
+      description: 'Incident highlights, broadcast notices, and community reports strictly observe a 6-hour operational window across the entire app. Posts older than 6 hours are automatically cleared to keep peak-hour commute alerts fresh.'
     },
     {
       id: 'bullets',
@@ -80,37 +150,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       icon: ListFilter,
       iconColor: 'text-cyan-400 bg-cyan-950/40 border-cyan-500/30',
       title: 'Default View Set to "Bullet Points"',
-      description: 'The live incident feed now opens in Bullet Points mode by default. Motorists can quickly scan highway hazards, lane obstructions, and spiking alerts without scrolling through extensive card content. View toggles remain available to switch to Cards or Compact mode anytime.'
-    },
-    {
-      id: 'badges',
-      category: 'visuals',
-      badge: 'Layout Polish',
-      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-      icon: Layers,
-      iconColor: 'text-emerald-400 bg-emerald-950/40 border-emerald-500/30',
-      title: 'Stacked Incident Badges & Headlines',
-      description: 'Badges like "Highlight" and "Broadcast" now sit neatly stacked directly above the headline and description. This prevents text displacement, uneven wrapping, and awkward line breaks on mobile phones and widescreen displays.'
-    },
-    {
-      id: 'carousel',
-      category: 'feed',
-      badge: 'Partner Carousel',
-      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
-      icon: Sparkles,
-      iconColor: 'text-indigo-400 bg-indigo-950/40 border-indigo-500/30',
-      title: 'Streamlined In-Feed Partner Banner',
-      description: 'Removed the shuffle button from the partner banner header to declutter the feed. Partner ads now rotate automatically on a timed 6-second cycle with smooth left/right arrow controls for manual browsing.'
-    },
-    {
-      id: 'persistence',
-      category: 'persistence',
-      badge: 'Cloud Resilience',
-      badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-      icon: ShieldCheck,
-      iconColor: 'text-blue-400 bg-blue-950/40 border-blue-500/30',
-      title: 'Zero User Loss Guarantee & Cloud Firestore Hardening',
-      description: 'All 392 registered accounts and advertiser profiles are synchronized with Google Cloud Firestore. We added on-boot cloud hydration, on-demand query fallback during authentication, and immediate per-user syncing so no accounts are ever lost when publishing or restarting containers.'
+      description: 'The live incident feed opens in Bullet Points mode by default for rapid hazard scanning with view toggles available to switch to Cards or Compact mode anytime.'
     }
   ];
 

@@ -49,6 +49,16 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Lift Clubs & Work Commute Listings
+    match /lift_clubs/{liftId} {
+      allow read, write: if true;
+    }
+
+    // User Identity & Vehicle Verifications
+    match /verifications/{verificationId} {
+      allow read, write: if true;
+    }
+
     // Emergency SOS Calls & Dispatches
     match /sos/{sosId} {
       allow read, write: if true;

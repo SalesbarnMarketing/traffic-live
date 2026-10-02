@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { 
   ExternalLink, 
   RefreshCw, 
@@ -299,6 +298,7 @@ interface LiveFeedSectionProps {
   onClearFocusedAlert?: () => void;
   onNavigateToAdvertiser?: () => void;
   onSwitchTab?: (tab: any) => void;
+  onOpenFeedback?: () => void;
 }
 
 export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
@@ -315,21 +315,31 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
   focusedAlertQuery,
   onClearFocusedAlert,
   onNavigateToAdvertiser,
-  onSwitchTab
+  onSwitchTab,
+  onOpenFeedback
 }) => {
-  const isPermittedAdminRole = (role?: string) => {
-    return role === 'super_admin' || role === 'admin' || role === 'moderator' || role === 'patrol';
+  const isPermittedAdminRoleLocal = (role?: string, email?: string) => {
+    if (email) {
+      const cleanEmail = email.toLowerCase().trim();
+      if (cleanEmail === 'charlesodendaal43@gmail.com' || cleanEmail === 'salesbarnmarketing101@gmail.com' || cleanEmail === 'sylvester@trafficlive.co.za' || cleanEmail === 'admin@livetraffic.co.za') {
+        return true;
+      }
+    }
+    if (!role) return false;
+    const lower = role.toLowerCase().trim();
+    return lower === 'super_admin' || lower === 'admin' || lower === 'moderator' || lower === 'patrol' || lower.includes('admin') || lower.includes('patrol');
   };
 
   const isUserAdmin = Boolean(
-    (currentUser && (
-      isPermittedAdminRole(currentUser.role) ||
-      currentUser.email === 'charlesodendaal43@gmail.com'
-    )) ||
+    (currentUser && isPermittedAdminRoleLocal(currentUser.role, currentUser.email)) ||
     (typeof window !== 'undefined' && Boolean(sessionStorage.getItem('adminToken') || localStorage.getItem('adminToken')))
   );
 
   const canUserDeleteFeedItem = (item: FeedItem): boolean => {
+    return canUserDeletePost(item, currentUser, isUserAdmin);
+  };
+
+  const canUserEditFeedItem = (item: FeedItem): boolean => {
     return canUserDeletePost(item, currentUser, isUserAdmin);
   };
 
@@ -1756,7 +1766,6 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
         {/* Dropdown Menu */}
         {isOpen && (
           <div
-            id={`feed-status-menu-${item.id}`}
             onClick={(e) => e.stopPropagation()}
             className="absolute left-0 top-full mt-1 w-44 bg-[#0F1115]/98 border border-slate-700/90 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
           >
@@ -2757,13 +2766,8 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
     if (!banner || dismissedAdIds[banner.id]) return null;
 
     return (
-      <motion.div
+      <div
         key={`in-feed-ad-${banner.id}-${slotIndex}-${adShuffleKey}`}
-        layout="position"
-        initial={{ opacity: 0, y: 14, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         className={isGrid ? "col-span-1 md:col-span-2 space-y-2 my-1" : "space-y-2 my-2"}
       >
         <div className="flex items-center justify-between px-1 text-xs">
@@ -2808,7 +2812,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
           onToggleAutoRotate={() => setAutoRotateTopBanners(prev => !prev)}
           onNavigateToAdvertiser={onNavigateToAdvertiser || (() => onSwitchTab?.('advertiser'))}
         />
-      </motion.div>
+      </div>
     );
   };
 
@@ -2917,15 +2921,11 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
   const activeFilterCount = (searchQuery.trim() ? 1 : 0) + (isAnyRegionFilterActive ? 1 : 0) + (corridorFilter !== 'all' ? 1 : 0) + (eventTypeFilter !== 'all' ? 1 : 0) + (activeTab === 'dispatches' && dispatchFilter !== 'all' ? 1 : 0);
 
   return (
-    <div
-      ref={feedContainerRef}
-      id="live-feed-section-container"
-      className={`transition-all duration-200 ${
+    <div id="live-feed-section-container" className={`transition-all duration-200 ${
         isFullscreen
           ? 'fixed inset-0 z-[100] w-screen h-screen overflow-y-auto bg-[#07090E] p-3 sm:p-6 space-y-3 pb-32 max-w-none'
           : 'max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 space-y-3 pb-36 sm:pb-28'
-      }`}
-    >
+      }`} ref={feedContainerRef}>
       {/* Full Screen Active Notification Bar with Quick Exit (Shown only in Fullscreen Mode) */}
       {isFullscreen && (
         <div className="sticky top-2 z-[120] flex items-center justify-between bg-slate-950/95 backdrop-blur-md border-2 border-amber-500/80 rounded-2xl px-3.5 sm:px-5 py-2.5 shadow-2xl animate-fadeIn">
@@ -2969,7 +2969,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
       {/* 🔴 CRITICAL ADMIN BROADCAST ON TOP RED BANNER (Click to direct to actual post) */}
       {activeTopRedBroadcasts.length > 0 && (
-        <div className="space-y-2 animate-fadeIn" id="top-red-broadcast-banner-group">
+        <div id="top-red-broadcast-banner-group" className="space-y-2 animate-fadeIn">
           {activeTopRedBroadcasts.map((broadcastItem) => {
             const dateStr = broadcastItem.lastUpdated || broadcastItem.timestamp || broadcastItem.startTime;
             const timeFormatted = formatSATime(dateStr) || formatReadableDateTime(dateStr);
@@ -2977,7 +2977,6 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
             return (
               <div
                 key={`top-red-broadcast-${broadcastItem.id}`}
-                id={`top-red-broadcast-${broadcastItem.id}`}
                 onClick={() => handleScrollToBroadcastPost(broadcastItem)}
                 className="group cursor-pointer bg-gradient-to-r from-red-600 via-red-700 to-rose-800 hover:from-red-500 hover:via-red-600 hover:to-rose-700 text-white rounded-2xl p-3 sm:p-4 shadow-xl shadow-red-950/60 border-2 border-red-400/90 transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 relative overflow-hidden"
                 role="button"
@@ -3191,15 +3190,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
             </button>
 
             {/* Dropdown Menu Overlay */}
-            <AnimatePresence>
+            
               {isNationwideDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 4, scale: 0.98 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden divide-y divide-slate-800 max-h-[380px] overflow-y-auto"
-                >
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden divide-y divide-slate-800 max-h-[380px] overflow-y-auto">
                   {/* Category 1: Main Feed Overview */}
                   <div className="p-1.5 space-y-1">
                     <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Feed Views</div>
@@ -3458,9 +3451,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                       </span>
                     </button>
                   </div>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
+            
           </div>
 
           {/* 2. Custom Location & Suburb Filter (Fast local in-memory filter, no external API scans) */}
@@ -3533,18 +3526,10 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
       </div>
 
       {/* Bullet Points View Feature Announcement Notification */}
-      <AnimatePresence>
-        {showBulletViewNotice && viewMode !== 'bullets' && (
-          <motion.div
-            key="bullet-view-notification"
-            initial={{ opacity: 0, y: -10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.24 }}
-            className="bg-gradient-to-r from-amber-950/90 via-slate-900 to-amber-950/70 border border-amber-500/50 rounded-2xl p-3.5 sm:p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs relative overflow-hidden"
-          >
-            {/* Ambient subtle glow */}
-            <div className="absolute top-0 right-0 w-48 h-full bg-gradient-to-l from-amber-500/10 to-transparent pointer-events-none" />
+      {showBulletViewNotice && viewMode !== 'bullets' && (
+        <div key="bullet-view-notification" className="bg-gradient-to-r from-amber-950/90 via-slate-900 to-amber-950/70 border border-amber-500/50 rounded-2xl p-3.5 sm:p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs relative overflow-hidden">
+          {/* Ambient subtle glow */}
+          <div className="absolute top-0 right-0 w-48 h-full bg-gradient-to-l from-amber-500/10 to-transparent pointer-events-none" />
 
             <div className="flex items-start space-x-3 relative z-10">
               <div className="p-2.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-xl shrink-0 mt-0.5 sm:mt-0 shadow-sm ring-1 ring-amber-400/20">
@@ -3584,20 +3569,14 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                 <X className="w-4 h-4" />
               </button>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      
 
       {/* Minimal View Recommendation Notification (Shown on dense card view every second time up to 10 total views when bullet notice is dismissed) */}
-      <AnimatePresence>
+      
         {!showBulletViewNotice && showMinimalViewNotice && viewMode !== 'minimal' && viewMode !== 'bullets' && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.24 }}
-            className="bg-gradient-to-r from-cyan-950/90 via-slate-900 to-sky-950/80 border border-cyan-500/40 rounded-2xl p-3.5 sm:p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
-          >
+          <div className="bg-gradient-to-r from-cyan-950/90 via-slate-900 to-sky-950/80 border border-cyan-500/40 rounded-2xl p-3.5 sm:p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-start space-x-3">
               <div className="p-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl shrink-0 mt-0.5 sm:mt-0 shadow-sm">
                 <AlignLeft className="w-4 h-4 text-cyan-300" />
@@ -3635,9 +3614,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                 <X className="w-4 h-4" />
               </button>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      
 
       {/* ========================================================================= */}
       {/* UNIFIED LIVE FEED: All Posts, Admin Dispatches, Crashes, Hazards & Highway Feeds */}
@@ -4093,13 +4072,14 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
         </div>
 
         {/* Line 2: Size, View Mode, Sort, Fullscreen & Google Scans */}
-        <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1.5 border-t border-slate-800/50 overflow-x-auto no-scrollbar scroll-smooth">
+        <div className="relative z-30 flex items-center justify-between gap-1.5 sm:gap-2 pt-1.5 border-t border-slate-800/50 overflow-visible flex-wrap sm:flex-nowrap">
           {/* Tools: Size, View Mode, Sort, Fullscreen, Presence */}
           <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
             {/* Font Size Selection Dropdown */}
             <div className="relative shrink-0" ref={fontSizeDropdownRef}>
               <button
                 type="button"
+                id="btn-feed-fontsize-dropdown"
                 onClick={() => {
                   setIsFontSizeDropdownOpen(prev => !prev);
                   setIsPostSelectionDropdownOpen(false);
@@ -4118,7 +4098,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
               </button>
 
               {isFontSizeDropdownOpen && (
-                <div className="absolute left-0 mt-1.5 w-52 max-w-[calc(100vw-2rem)] bg-[#0F1115]/98 border-2 border-amber-500/60 rounded-2xl shadow-2xl z-50 py-1 overflow-hidden animate-fadeIn divide-y divide-slate-800/80 backdrop-blur-xl">
+                <div className="absolute left-0 top-full mt-1.5 w-52 max-w-[calc(100vw-2rem)] bg-[#0F1115] border-2 border-amber-500/60 rounded-2xl shadow-2xl z-50 py-1 overflow-hidden animate-fadeIn divide-y divide-slate-800/80 backdrop-blur-xl">
                   <div className="px-3 py-1.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-[#07090E] flex items-center justify-between">
                     <span>Feed Text Size</span>
                     <span className="text-[9px] text-slate-500 font-mono">Live</span>
@@ -4181,6 +4161,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
             <div className="relative shrink-0" ref={viewModeDropdownRef}>
               <button
                 type="button"
+                id="btn-feed-viewmode-dropdown"
                 onClick={() => {
                   setIsViewModeDropdownOpen(prev => !prev);
                   setIsPostSelectionDropdownOpen(false);
@@ -4195,7 +4176,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                 {viewMode === 'condensed' && <List className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
                 {viewMode === 'bullets' && <CircleDot className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
                 {viewMode === 'detailed' && <LayoutGrid className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
-                <span className="hidden sm:inline text-[11px]">
+                <span className="text-[11px] font-bold">
                   {viewMode === 'minimal' ? 'Minimal' : viewMode === 'condensed' ? 'List' : viewMode === 'bullets' ? 'Bullets' : 'Cards'}
                 </span>
                 {showBulletViewNotice && viewMode !== 'bullets' && (
@@ -4207,7 +4188,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
               </button>
 
               {isViewModeDropdownOpen && (
-                <div className="absolute left-0 mt-1.5 w-48 max-w-[calc(100vw-2rem)] bg-[#0F1115]/98 border-2 border-cyan-500/60 rounded-2xl shadow-2xl z-50 py-1 overflow-hidden animate-fadeIn divide-y divide-slate-800/80 backdrop-blur-xl">
+                <div className="absolute left-0 top-full mt-1.5 w-48 max-w-[calc(100vw-2rem)] bg-[#0F1115] border-2 border-cyan-500/60 rounded-2xl shadow-2xl z-50 py-1 overflow-hidden animate-fadeIn divide-y divide-slate-800/80 backdrop-blur-xl">
                   <div className="px-3 py-1.5 text-[10px] font-bold text-cyan-400 uppercase tracking-wider bg-[#07090E]">
                     View Layout
                   </div>
@@ -4360,7 +4341,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
             /* MINIMAL VIEW: Clean & Simple Main + Sub text + Updated Date*/
             /* ========================================================= */
             <div className="space-y-2.5">
-              <AnimatePresence mode="popLayout" initial={false}>
+              
                 {filteredITrafficItems.flatMap((item, index) => {
                   const updatedDateStr = item.lastUpdated
                     ? formatReadableDateTime(item.lastUpdated)
@@ -4377,16 +4358,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   const isNew = newlyAddedItemIds.has(item.id);
                   const isUserPost = !isGbv && (Boolean((item as any).isUserPost) || isItemUserPost(item) || isItemUnverifiedUserPost(item) || item.source === 'community' || item.source === 'user');
                   const elements = [
-                    <motion.div
-                      key={item.id}
-                      id={`feed-item-${item.id}`}
-                      layout="position"
-                      initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                      className={`space-y-2.5 ${isNew ? 'animate-feed-fade-in' : ''}`}
-                    >
+                    <div key={item.id} className={`space-y-2.5 ${isNew ? 'animate-feed-fade-in' : ''}`}>
                       <div className={`border rounded-xl p-3.5 sm:p-4 shadow-sm transition-all duration-500 space-y-1.5 ${
                         isNew
                           ? 'animate-new-feed-highlight'
@@ -4664,18 +4636,6 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                               )}
                             </button>
 
-                            {item.link && (
-                              <a
-                                href={item.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-slate-400 hover:text-cyan-300 p-1 rounded shrink-0 transition"
-                                title="Open Live Corridor Source"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-
                             {onOpenShareToX && (
                               <button
                                 type="button"
@@ -4689,13 +4649,13 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                               </button>
                             )}
 
-                            {/* Admin Controls in Minimal View */}
-                            {isUserAdmin && (
+                            {/* Edit Controls in Minimal View */}
+                            {canUserEditFeedItem(item) && (
                               <button
                                 type="button"
                                 onClick={() => setEditingFeedItem(item)}
                                 className="text-cyan-400 hover:text-cyan-300 p-1 rounded shrink-0 transition cursor-pointer"
-                                title="Edit post info & fix typos (Admin)"
+                                title="Edit post info & fix typos"
                               >
                                 <Edit3 className="w-3 h-3" />
                               </button>
@@ -4747,38 +4707,29 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ];
 
                   const targetTechrixCardIndex = Math.min(2, filteredITrafficItems.length - 1);
                   if (index === targetTechrixCardIndex) {
                     elements.push(
-                      <motion.div
-                        key="techrix-feed-card-itraffic-minimal"
-                        layout="position"
-                        initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                      >
+                      <div key="techrix-feed-card-itraffic-minimal">
                         <TechrixFeedAdCard variant="minimal" />
-                      </motion.div>
+                      </div>
                     );
                   }
 
                   const effectiveShareCardIndex = Math.min(shareCardPositionIndex, Math.max(0, filteredITrafficItems.length - 1));
                   if (index === effectiveShareCardIndex) {
                     const shareCardEl = (
-                      <motion.div
-                        key="share-app-feed-card-itraffic-minimal"
-                        layout="position"
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.25 } }}
-                      >
-                        <ShareAppFeedCard variant="minimal" isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} />
-                      </motion.div>
+                      <div key="share-app-feed-card-itraffic-minimal">
+                        <ShareAppFeedCard 
+                          variant="minimal" 
+                          isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} 
+                          currentUser={currentUser}
+                          onOpenFeedback={onOpenFeedback}
+                        />
+                      </div>
                     );
                     if (effectiveShareCardIndex === 0) {
                       elements.unshift(shareCardEl);
@@ -4794,14 +4745,14 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   return elements;
                 })}
-              </AnimatePresence>
+              
             </div>
           ) : viewMode === 'condensed' ? (
             /* ========================================================= */
             /* CONDENSED VIEW: High Density List to see more at once     */
             /* ========================================================= */
             <div className="space-y-2">
-              <AnimatePresence mode="popLayout" initial={false}>
+              
                 {filteredITrafficItems.flatMap((item, index) => {
                   const isGbv = item.category === 'gbv' || item.category === 'gbv_assist' || item.eventSubType?.toLowerCase().includes('gbv') || item.content?.toLowerCase().includes('gbv') || item.author?.toLowerCase().includes('gbv');
                   const isCrash = !isGbv && (item.category === 'crash' || item.eventSubType?.toLowerCase().includes('crash') || item.eventSubType?.toLowerCase().includes('accident'));
@@ -4838,24 +4789,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   const isNew = newlyAddedItemIds.has(item.id);
                   const elements = [
-                    <motion.div
-                      key={item.id}
-                      id={`feed-item-${item.id}`}
-                      layout="position"
-                      initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                      className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-md transition-all duration-500 relative ${rowBorder} ${
-                        isNew ? 'animate-new-feed-highlight' : ''
-                      } ${
-                        highlightedItemId === item.id
-                          ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/30 border-amber-400 bg-gradient-to-r from-amber-950/60 via-[#14120D] to-[#0F1115]'
-                          : item.highlightGold
-                          ? 'ring-2 ring-amber-400 border-amber-400 bg-[#14120D] shadow-[0_0_20px_rgba(245,158,11,0.25)]'
-                          : ''
-                      }`}
-                    >
+                    <div key={item.id} className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-md transition-all duration-500 relative ${rowBorder} ${ isNew ? 'animate-new-feed-highlight' : '' } ${ highlightedItemId === item.id ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/30 border-amber-400 bg-gradient-to-r from-amber-950/60 via-[#14120D] to-[#0F1115]' : item.highlightGold ? 'ring-2 ring-amber-400 border-amber-400 bg-[#14120D] shadow-[0_0_20px_rgba(245,158,11,0.25)]' : '' }`}>
                     {/* Primary Compact Card */}
                     <div className="space-y-2">
                       {/* Top Row: Badges, View Count, Timestamp & Media Thumbnail */}
@@ -5158,19 +5092,6 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                             </button>
                           )}
 
-                          {/* Official Corridor Source Link */}
-                          {item.link && (
-                            <a
-                              href={item.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 p-1.5 rounded-lg text-[10px] font-bold flex items-center shrink-0 transition"
-                              title="Open Live Corridor Source"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-
                           {onOpenShareToX && (
                             <button
                               type="button"
@@ -5198,13 +5119,13 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180 text-cyan-300' : ''}`} />
                           </button>
 
-                          {/* Admin Edit Button */}
-                          {isUserAdmin && (
+                          {/* Edit Button */}
+                          {canUserEditFeedItem(item) && (
                             <button
                               type="button"
                               onClick={() => setEditingFeedItem(item)}
                               className="bg-[#050608] hover:bg-cyan-950/60 text-cyan-400 border border-slate-700/80 hover:border-cyan-500/40 p-1.5 rounded-lg text-[10px] font-bold shrink-0 transition cursor-pointer"
-                              title="Edit post info, fix typos (Admin)"
+                              title="Edit post info, fix typos"
                             >
                               <Edit3 className="w-3 h-3" />
                             </button>
@@ -5335,38 +5256,24 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                         })()}
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                   ];
 
                   const targetTechrixCardIndex = Math.min(2, filteredITrafficItems.length - 1);
                   if (index === targetTechrixCardIndex) {
                     elements.push(
-                      <motion.div
-                        key="techrix-feed-card-itraffic-condensed"
-                        layout="position"
-                        initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                      >
+                      <div key="techrix-feed-card-itraffic-condensed">
                         <TechrixFeedAdCard variant="compact" />
-                      </motion.div>
+                      </div>
                     );
                   }
 
                   const effectiveShareCardIndex = Math.min(shareCardPositionIndex, Math.max(0, filteredITrafficItems.length - 1));
                   if (index === effectiveShareCardIndex) {
                     const shareCardEl = (
-                      <motion.div
-                        key="share-app-feed-card-itraffic-condensed"
-                        layout="position"
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.25 } }}
-                      >
+                      <div key="share-app-feed-card-itraffic-condensed">
                         <ShareAppFeedCard variant="compact" isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} />
-                      </motion.div>
+                      </div>
                     );
                     if (effectiveShareCardIndex === 0) {
                       elements.unshift(shareCardEl);
@@ -5382,14 +5289,14 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   return elements;
                 })}
-              </AnimatePresence>
+              
             </div>
           ) : viewMode === 'bullets' ? (
             /* ========================================================= */
             /* BULLET POINTS VIEW: Maximum Density / Second Line Only    */
             /* ========================================================= */
             <div className="bg-[#0B0D13] border border-slate-800/90 rounded-2xl divide-y divide-slate-800/60 overflow-hidden shadow-xl">
-              <AnimatePresence mode="popLayout" initial={false}>
+              
                 {filteredITrafficItems.flatMap((item, index) => {
                   const isNew = newlyAddedItemIds.has(item.id);
                   const isExpanded = !!expandedItemIds[item.id];
@@ -5423,30 +5330,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   else if (isAdmin) bulletDotClass = 'bg-amber-400 shadow-amber-400/50';
 
                   const elements = [
-                    <motion.div
-                      key={item.id}
-                      id={`feed-item-bullet-${item.id}`}
-                      layout="position"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                      className={`transition-colors duration-200 ${
-                        isNew
-                          ? 'animate-new-feed-highlight bg-amber-500/10'
-                          : highlightedItemId === item.id
-                          ? 'bg-amber-950/40 ring-1 ring-amber-400'
-                          : item.broadcastTopRed
-                          ? 'bg-red-950/30 ring-1 ring-red-500/90'
-                          : item.highlightGold
-                          ? 'bg-amber-950/30 ring-1 ring-amber-400/90'
-                          : isGbv
-                          ? 'border-2 border-purple-500/80 ring-1 ring-purple-500/50 bg-gradient-to-r from-purple-950/40 to-[#0F1115] rounded-xl my-1'
-                          : isUserPost
-                          ? 'border-2 border-orange-500 ring-1 ring-orange-500/50 bg-gradient-to-r from-orange-950/30 to-[#0F1115] rounded-xl my-1'
-                          : 'hover:bg-slate-800/30'
-                      }`}
-                    >
+                    <div key={item.id} className={`transition-colors duration-200 ${ isNew ? 'animate-new-feed-highlight bg-amber-500/10' : highlightedItemId === item.id ? 'bg-amber-950/40 ring-1 ring-amber-400' : item.broadcastTopRed ? 'bg-red-950/30 ring-1 ring-red-500/90' : item.highlightGold ? 'bg-amber-950/30 ring-1 ring-amber-400/90' : isGbv ? 'border-2 border-purple-500/80 ring-1 ring-purple-500/50 bg-gradient-to-r from-purple-950/40 to-[#0F1115] rounded-xl my-1' : isUserPost ? 'border-2 border-orange-500 ring-1 ring-orange-500/50 bg-gradient-to-r from-orange-950/30 to-[#0F1115] rounded-xl my-1' : 'hover:bg-slate-800/30' }`}>
                       {/* The Bullet Row: Displays the second line of the card */}
                       {item.highlightGold || item.broadcastTopRed ? (
                         <div
@@ -5663,40 +5547,24 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           })()}
                         </div>
                       )}
-                    </motion.div>
+                    </div>
                   ];
 
                   const targetTechrixCardIndex = Math.min(2, filteredITrafficItems.length - 1);
                   if (index === targetTechrixCardIndex) {
                     elements.push(
-                      <motion.div
-                        key="techrix-feed-card-itraffic-bullets"
-                        layout="position"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                        className="p-2 sm:p-2.5 bg-[#080B10]"
-                      >
+                      <div key="techrix-feed-card-itraffic-bullets" className="p-2 sm:p-2.5 bg-[#080B10]">
                         <TechrixFeedAdCard variant="compact" />
-                      </motion.div>
+                      </div>
                     );
                   }
 
                   const effectiveShareCardIndex = Math.min(shareCardPositionIndex, Math.max(0, filteredITrafficItems.length - 1));
                   if (index === effectiveShareCardIndex) {
                     const shareCardEl = (
-                      <motion.div
-                        key="share-app-feed-card-itraffic-bullets"
-                        layout="position"
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.25 } }}
-                        className="p-2 sm:p-2.5 bg-[#080B10]"
-                      >
+                      <div key="share-app-feed-card-itraffic-bullets" className="p-2 sm:p-2.5 bg-[#080B10]">
                         <ShareAppFeedCard variant="compact" isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} />
-                      </motion.div>
+                      </div>
                     );
                     if (effectiveShareCardIndex === 0) {
                       elements.unshift(shareCardEl);
@@ -5712,14 +5580,14 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   return elements;
                 })}
-              </AnimatePresence>
+              
             </div>
           ) : (
             /* ========================================================= */
             /* DETAILED VIEW: 2-Column Responsive Card Grid              */
             /* ========================================================= */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              <AnimatePresence mode="popLayout" initial={false}>
+              
                 {filteredITrafficItems.flatMap((item, index) => {
                   const isGbv = item.category === 'gbv' || item.category === 'gbv_assist' || item.eventSubType?.toLowerCase().includes('gbv') || item.content?.toLowerCase().includes('gbv') || item.author?.toLowerCase().includes('gbv');
                   const isCrash = !isGbv && (item.category === 'crash' || item.eventSubType?.toLowerCase().includes('crash') || item.eventSubType?.toLowerCase().includes('accident'));
@@ -5763,15 +5631,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   const isNew = newlyAddedItemIds.has(item.id);
                   const elements = [
-                    <motion.div
-                      key={item.id}
-                      layout="position"
-                      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                      className={inlineBannerToDisplay ? `col-span-1 md:col-span-2 space-y-3.5 ${isNew ? 'animate-feed-fade-in' : ''}` : `flex flex-col ${isNew ? 'animate-feed-fade-in' : ''}`}
-                    >
+                    <div key={item.id}>
                       {inlineBannerToDisplay && (
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between px-1 text-xs">
@@ -5802,9 +5662,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           />
                         </div>
                       )}
-                      <div
-                        id={`feed-item-${item.id}`}
-                        className={`bg-[#0F1115] border rounded-2xl p-4 sm:p-4.5 space-y-3 shadow-xl transition-all duration-500 relative flex flex-col justify-between flex-1 ${cardBorder} ${
+                      <div className={`bg-[#0F1115] border rounded-2xl p-4 sm:p-4.5 space-y-3 shadow-xl transition-all duration-500 relative flex flex-col justify-between flex-1 ${cardBorder} ${
                           isNew ? 'animate-new-feed-highlight' : ''
                         } ${
                           highlightedItemId === item.id
@@ -5812,8 +5670,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                             : item.highlightGold
                             ? 'ring-2 ring-amber-400 border-amber-400 bg-[#14120D] shadow-[0_0_20px_rgba(245,158,11,0.25)]'
                             : ''
-                        }`}
-                      >
+                        }`}>
                       {/* Top Row: Roadway & Badges */}
                       <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
@@ -6195,19 +6052,6 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           </button>
                         )}
 
-                        {item.link && (
-                          <a
-                            href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-1 rounded-lg text-[11px] font-bold flex items-center space-x-1 transition"
-                            title="Open live corridor update source"
-                          >
-                            <span>Live Source</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-
                         {onOpenShareToX && (
                           <button
                             type="button"
@@ -6222,12 +6066,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           </button>
                         )}
 
-                        {isUserAdmin && (
+                        {canUserEditFeedItem(item) && (
                           <button
                             type="button"
                             onClick={() => setEditingFeedItem(item)}
                             className="bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-1 rounded-lg text-[11px] font-bold flex items-center space-x-1 transition cursor-pointer"
-                            title="Edit post info, fix typos or adjust details (Admin)"
+                            title="Edit post info, fix typos or adjust details"
                           >
                             <Edit3 className="w-3 h-3 text-cyan-400" />
                             <span>Edit</span>
@@ -6281,40 +6125,24 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
                 ];
 
                 const targetTechrixCardIndex = Math.min(2, filteredITrafficItems.length - 1);
                 if (index === targetTechrixCardIndex) {
                   elements.push(
-                    <motion.div
-                      key="techrix-feed-card-itraffic-detailed"
-                      layout="position"
-                      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                      className="col-span-1 md:col-span-2"
-                    >
+                    <div key="techrix-feed-card-itraffic-detailed" className="col-span-1 md:col-span-2">
                       <TechrixFeedAdCard variant="card" />
-                    </motion.div>
+                    </div>
                   );
                 }
 
                 const effectiveShareCardIndex = Math.min(shareCardPositionIndex, Math.max(0, filteredITrafficItems.length - 1));
                 if (index === effectiveShareCardIndex) {
                   const shareCardEl = (
-                    <motion.div
-                      key="share-app-feed-card-itraffic-detailed"
-                      layout="position"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.25 } }}
-                      className="col-span-1 md:col-span-2"
-                    >
+                    <div key="share-app-feed-card-itraffic-detailed" className="col-span-1 md:col-span-2">
                       <ShareAppFeedCard variant="card" isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} />
-                    </motion.div>
+                    </div>
                   );
                   if (effectiveShareCardIndex === 0) {
                     elements.unshift(shareCardEl);
@@ -6330,7 +6158,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                 return elements;
               })}
-              </AnimatePresence>
+              
             </div>
           )}
 
@@ -6444,26 +6272,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
             /* MINIMAL VIEW: Clean & Simple Dispatches List              */
             /* ========================================================= */
             <div className="space-y-2.5">
-              <AnimatePresence mode="popLayout" initial={false}>
+              
                 {filteredDispatches.flatMap((item, index) => {
                   const isNew = newlyAddedItemIds.has(item.id);
                   const isUserPost = Boolean((item as any).isUserPost) || isItemUserPost(item) || isItemUnverifiedUserPost(item) || item.source === 'community' || item.source === 'user';
                   const elements = [
-                    <motion.div
-                      key={item.id}
-                      layout="position"
-                      initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                      className={`rounded-xl p-3.5 sm:p-4 shadow-sm transition space-y-1.5 ${
-                        isNew
-                          ? 'animate-new-feed-highlight'
-                          : isUserPost
-                          ? 'border-2 border-orange-500 ring-2 ring-orange-500/50 shadow-xl shadow-orange-950/40 bg-[#0F1115]'
-                          : 'bg-[#0F1115] border border-slate-800/80 hover:border-slate-700/80'
-                      }`}
-                    >
+                    <div key={item.id} className={`rounded-xl p-3.5 sm:p-4 shadow-sm transition space-y-1.5 ${ isNew ? 'animate-new-feed-highlight' : isUserPost ? 'border-2 border-orange-500 ring-2 ring-orange-500/50 shadow-xl shadow-orange-950/40 bg-[#0F1115]' : 'bg-[#0F1115] border border-slate-800/80 hover:border-slate-700/80' }`}>
                       {/* Main Text */}
                       <h4 className="text-sm sm:text-[15px] font-bold text-white leading-snug tracking-tight flex items-center space-x-1.5 flex-wrap gap-y-1">
                         {isNew && (
@@ -6627,38 +6441,24 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ];
 
                   const targetTechrixCardIndex = Math.min(2, filteredDispatches.length - 1);
                   if (index === targetTechrixCardIndex) {
                     elements.push(
-                      <motion.div
-                        key="techrix-feed-card-dispatch-minimal"
-                        layout="position"
-                        initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                      >
+                      <div key="techrix-feed-card-dispatch-minimal">
                         <TechrixFeedAdCard variant="minimal" />
-                      </motion.div>
+                      </div>
                     );
                   }
 
                   const effectiveShareCardIndex = Math.min(shareCardPositionIndex, Math.max(0, filteredDispatches.length - 1));
                   if (index === effectiveShareCardIndex) {
                     const shareCardEl = (
-                      <motion.div
-                        key="share-app-feed-card-dispatch-minimal"
-                        layout="position"
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.25 } }}
-                      >
+                      <div key="share-app-feed-card-dispatch-minimal">
                         <ShareAppFeedCard variant="minimal" isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} />
-                      </motion.div>
+                      </div>
                     );
                     if (effectiveShareCardIndex === 0) {
                       elements.unshift(shareCardEl);
@@ -6674,12 +6474,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   return elements;
                 })}
-              </AnimatePresence>
+              
             </div>
           ) : viewMode === 'condensed' ? (
             /* Condensed Dispatches List */
             <div className="space-y-2">
-              <AnimatePresence mode="popLayout" initial={false}>
+              
                 {filteredDispatches.flatMap((item, index) => {
                   const isNew = newlyAddedItemIds.has(item.id);
                   const isUserPost = Boolean((item as any).isUserPost) || isItemUserPost(item) || isItemUnverifiedUserPost(item) || item.source === 'community' || item.source === 'user';
@@ -6695,17 +6495,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   else if (isPotholeFix) rowBorder = 'border-sky-500/40 hover:border-sky-500/70 bg-[#0F1115]';
 
                   const elements = [
-                    <motion.div
-                      key={item.id}
-                      layout="position"
-                      initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                      className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-md transition relative ${rowBorder} ${
-                        isNew ? 'animate-new-feed-highlight' : ''
-                      }`}
-                    >
+                    <div key={item.id} className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-md transition relative ${rowBorder} ${ isNew ? 'animate-new-feed-highlight' : '' }`}>
                     <div className="space-y-2">
                       {/* Top Badges & Meta Row */}
                       <div className="flex items-start justify-between gap-2">
@@ -6890,13 +6680,13 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180 text-amber-300' : ''}`} />
                           </button>
 
-                          {/* Admin Edit Button */}
-                          {isUserAdmin && (
+                          {/* Edit Button */}
+                          {canUserEditFeedItem(item) && (
                             <button
                               type="button"
                               onClick={() => setEditingFeedItem(item)}
                               className="bg-[#050608] hover:bg-amber-950/60 text-amber-400 border border-slate-700/80 hover:border-amber-500/40 p-1.5 rounded-lg text-[10px] font-bold shrink-0 transition cursor-pointer"
-                              title="Edit dispatch info, fix typos (Admin)"
+                              title="Edit dispatch info, fix typos"
                             >
                               <Edit3 className="w-3 h-3" />
                             </button>
@@ -6993,38 +6783,24 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                         })()}
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                   ];
 
                   const targetTechrixCardIndex = Math.min(2, filteredDispatches.length - 1);
                   if (index === targetTechrixCardIndex) {
                     elements.push(
-                      <motion.div
-                        key="techrix-feed-card-dispatch-condensed"
-                        layout="position"
-                        initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                      >
+                      <div key="techrix-feed-card-dispatch-condensed">
                         <TechrixFeedAdCard variant="compact" />
-                      </motion.div>
+                      </div>
                     );
                   }
 
                   const effectiveShareCardIndex = Math.min(shareCardPositionIndex, Math.max(0, filteredDispatches.length - 1));
                   if (index === effectiveShareCardIndex) {
                     const shareCardEl = (
-                      <motion.div
-                        key="share-app-feed-card-dispatch-condensed"
-                        layout="position"
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.25 } }}
-                      >
+                      <div key="share-app-feed-card-dispatch-condensed">
                         <ShareAppFeedCard variant="compact" isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} />
-                      </motion.div>
+                      </div>
                     );
                     if (effectiveShareCardIndex === 0) {
                       elements.unshift(shareCardEl);
@@ -7040,14 +6816,14 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   return elements;
                 })}
-              </AnimatePresence>
+              
             </div>
           ) : viewMode === 'bullets' ? (
             /* ========================================================= */
             /* BULLET POINTS VIEW: Community & Patrol Dispatches         */
             /* ========================================================= */
             <div className="bg-[#0B0D13] border border-slate-800/90 rounded-2xl divide-y divide-slate-800/60 overflow-hidden shadow-xl">
-              <AnimatePresence mode="popLayout" initial={false}>
+              
                 {filteredDispatches.flatMap((item, index) => {
                   const isNew = newlyAddedItemIds.has(item.id);
                   const isUserPost = Boolean((item as any).isUserPost) || isItemUserPost(item) || isItemUnverifiedUserPost(item) || item.source === 'community' || item.source === 'user';
@@ -7063,24 +6839,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   else if (isPotholeFix) bulletDotClass = 'bg-sky-400 shadow-sky-400/50';
 
                   const elements = [
-                    <motion.div
-                      key={item.id}
-                      id={`dispatch-item-bullet-${item.id}`}
-                      layout="position"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                      className={`transition-colors duration-200 ${
-                        isNew
-                          ? 'animate-new-feed-highlight bg-amber-500/10'
-                          : isUserPost
-                          ? 'bg-orange-950/20 border-l-4 border-l-orange-500'
-                          : highlightedItemId === item.id
-                          ? 'bg-amber-950/40'
-                          : 'hover:bg-slate-800/30'
-                      }`}
-                    >
+                    <div key={item.id} className={`transition-colors duration-200 ${ isNew ? 'animate-new-feed-highlight bg-amber-500/10' : isUserPost ? 'bg-orange-950/20 border-l-4 border-l-orange-500' : highlightedItemId === item.id ? 'bg-amber-950/40' : 'hover:bg-slate-800/30' }`}>
                       {/* The Bullet Row: Displays the second line of the card */}
                       <div
                         onClick={() => toggleExpandItem(item.id)}
@@ -7191,32 +6950,24 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           })()}
                         </div>
                       )}
-                    </motion.div>
+                    </div>
                   ];
 
                   const targetTechrixCardIndex = Math.min(2, filteredDispatches.length - 1);
                   if (index === targetTechrixCardIndex) {
                     elements.push(
-                      <motion.div key="techrix-feed-card-dispatch-bullets" layout="position" className="p-2 sm:p-2.5 bg-[#080B10]">
+                      <div key="techrix-feed-card-dispatch-bullets" className="p-2 sm:p-2.5 bg-[#080B10]">
                         <TechrixFeedAdCard variant="compact" />
-                      </motion.div>
+                      </div>
                     );
                   }
 
                   const effectiveShareCardIndex = Math.min(shareCardPositionIndex, Math.max(0, filteredDispatches.length - 1));
                   if (index === effectiveShareCardIndex) {
                     const shareCardEl = (
-                      <motion.div
-                        key="share-app-feed-card-dispatch-bullets"
-                        layout="position"
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.25 } }}
-                        className="p-2 sm:p-2.5 bg-[#080B10]"
-                      >
+                      <div key="share-app-feed-card-dispatch-bullets" className="p-2 sm:p-2.5 bg-[#080B10]">
                         <ShareAppFeedCard variant="compact" isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} />
-                      </motion.div>
+                      </div>
                     );
                     if (effectiveShareCardIndex === 0) {
                       elements.unshift(shareCardEl);
@@ -7232,11 +6983,11 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   return elements;
                 })}
-              </AnimatePresence>
+              
             </div>
           ) : (
             <div className="space-y-4">
-              <AnimatePresence mode="popLayout" initial={false}>
+              
                 {filteredDispatches.flatMap((item, index) => {
                   const isNew = newlyAddedItemIds.has(item.id);
                   const isUserPost = Boolean((item as any).isUserPost) || isItemUserPost(item) || isItemUnverifiedUserPost(item) || item.source === 'community' || item.source === 'user';
@@ -7246,34 +6997,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   const isSOSAlert = item.content.toLowerCase().includes('sos') || item.content.toLowerCase().includes('emergency') || item.content.toLowerCase().includes('motorist');
 
                   const elements = [
-                    <motion.div
-                      key={item.id}
-                      id={`feed-item-${item.id}`}
-                      layout="position"
-                      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                      className={`bg-[#0F1115] border rounded-2xl p-4 sm:p-5 space-y-3 shadow-xl transition-all duration-500 ${
-                        isNew ? 'animate-new-feed-highlight' : ''
-                      } ${
-                      item.highlightGold
-                        ? 'ring-2 ring-amber-400 border-amber-400 bg-gradient-to-r from-[#1A140B] via-[#14120D] to-[#0F1115] shadow-[0_0_25px_rgba(245,158,11,0.3)]'
-                        : isUserPost
-                        ? 'border-2 border-orange-500 ring-2 ring-orange-500/50 shadow-xl shadow-orange-950/40 bg-[#0F1115]'
-                        : isAdminPost
-                        ? 'border-amber-500/40 bg-gradient-to-r from-[#0F1115] via-[#14120D] to-[#0F1115]'
-                        : isPotholeFix
-                        ? 'border-sky-500/30'
-                        : isSOSAlert
-                        ? 'border-rose-500/30'
-                        : 'border-slate-800 hover:border-slate-700'
-                    } ${
-                      highlightedItemId === item.id
-                        ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/30 border-amber-400 bg-gradient-to-r from-[#1A140B] via-[#0F1115] to-[#0F1115]'
-                        : ''
-                    }`}
-                  >
+                    <div key={item.id} className={`bg-[#0F1115] border rounded-2xl p-4 sm:p-5 space-y-3 shadow-xl transition-all duration-500 ${ isNew ? 'animate-new-feed-highlight' : '' } ${ item.highlightGold ? 'ring-2 ring-amber-400 border-amber-400 bg-gradient-to-r from-[#1A140B] via-[#14120D] to-[#0F1115] shadow-[0_0_25px_rgba(245,158,11,0.3)]' : isUserPost ? 'border-2 border-orange-500 ring-2 ring-orange-500/50 shadow-xl shadow-orange-950/40 bg-[#0F1115]' : isAdminPost ? 'border-amber-500/40 bg-gradient-to-r from-[#0F1115] via-[#14120D] to-[#0F1115]' : isPotholeFix ? 'border-sky-500/30' : isSOSAlert ? 'border-rose-500/30' : 'border-slate-800 hover:border-slate-700' } ${ highlightedItemId === item.id ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/30 border-amber-400 bg-gradient-to-r from-[#1A140B] via-[#0F1115] to-[#0F1115]' : '' }`}>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
                       <div className="flex items-center space-x-2.5">
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
@@ -7562,12 +7286,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           </button>
                         )}
 
-                        {isUserAdmin && (
+                        {canUserEditFeedItem(item) && (
                           <button
                             type="button"
                             onClick={() => setEditingFeedItem(item)}
                             className="bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1 transition cursor-pointer"
-                            title="Edit Broadcast (Admin Only)"
+                            title="Edit Broadcast"
                           >
                             <Edit3 className="w-3 h-3 text-amber-400" />
                             <span>Edit</span>
@@ -7621,40 +7345,24 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                         })()}
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                   ];
 
                   const targetTechrixCardIndex = Math.min(2, filteredDispatches.length - 1);
                   if (index === targetTechrixCardIndex) {
                     elements.push(
-                      <motion.div
-                        key="techrix-feed-card-dispatch-detailed"
-                        layout="position"
-                        initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                        className="col-span-1 md:col-span-2"
-                      >
+                      <div key="techrix-feed-card-dispatch-detailed" className="col-span-1 md:col-span-2">
                         <TechrixFeedAdCard variant="card" />
-                      </motion.div>
+                      </div>
                     );
                   }
 
                   const effectiveShareCardIndex = Math.min(shareCardPositionIndex, Math.max(0, filteredDispatches.length - 1));
                   if (index === effectiveShareCardIndex) {
                     const shareCardEl = (
-                      <motion.div
-                        key="share-app-feed-card-dispatch-detailed"
-                        layout="position"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                        transition={{ layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] }, opacity: { duration: 0.25 } }}
-                        className="col-span-1 md:col-span-2"
-                      >
+                      <div key="share-app-feed-card-dispatch-detailed" className="col-span-1 md:col-span-2">
                         <ShareAppFeedCard variant="card" isBubbledToTop={isShareCardBubbled && effectiveShareCardIndex === 0} />
-                      </motion.div>
+                      </div>
                     );
                     if (effectiveShareCardIndex === 0) {
                       elements.unshift(shareCardEl);
@@ -7670,7 +7378,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   return elements;
                 })}
-              </AnimatePresence>
+              
             </div>
           )}
 
@@ -7682,18 +7390,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
       {/* ========================================================================= */}
       {/* 👥 REAL-TIME LIVE USERS ONLINE & TOTAL USERS VISITED (BOTTOM OF ALL FEEDS) */}
       {/* ========================================================================= */}
-      <div
-        id="live-feed-audience-stats-bar"
-        className="bg-gradient-to-r from-slate-900/95 via-slate-900/90 to-slate-950/95 border border-slate-800/90 rounded-2xl p-2.5 sm:p-3 shadow-xl backdrop-blur-sm animate-fadeIn"
-      >
+      <div id="live-feed-audience-stats-bar" className="bg-gradient-to-r from-slate-900/95 via-slate-900/90 to-slate-950/95 border border-slate-800/90 rounded-2xl p-2.5 sm:p-3 shadow-xl backdrop-blur-sm animate-fadeIn">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           {/* Left: Real-time Stats Cards */}
           <div className="flex items-center space-x-2 sm:space-x-3 flex-wrap gap-y-1.5">
             {/* 🟢 Live Users Online */}
-            <div
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 shadow-inner hover:border-emerald-500/60 transition"
-              title="Active concurrent users currently connected to Live Traffic"
-            >
+            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 shadow-inner hover:border-emerald-500/60 transition">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -7712,10 +7414,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
             </div>
 
             {/* 👁️ Total Platform / Feed Views */}
-            <div
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 shadow-inner hover:border-cyan-500/50 transition"
-              title="Cumulative verified platform views and motorist reach across South Africa"
-            >
+            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 shadow-inner hover:border-cyan-500/50 transition">
               <Eye className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <span className="font-mono font-black text-white text-xs sm:text-sm">
                 {(totalVisitors || 73000).toLocaleString()}

@@ -265,8 +265,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   // Form state
   const [type, setType] = useState<ReportType | null>(prefilledType || null);
-  const [province, setProvince] = useState<SARegionId>('Gauteng');
+  const [province, setProvince] = useState<SARegionId | null>(null);
   const [suggestedProvince, setSuggestedProvince] = useState<SARegionId>('Gauteng');
+  const userSelectedProvinceManualRef = useRef<boolean>(false);
   
   // Location & Scene Status
   const [isOnScene, setIsOnScene] = useState<'yes' | 'no' | 'none' | null>(null);
@@ -398,7 +399,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
         const detected = detectRegionFromCoords(lat, lng);
         if (detected && detected !== 'all') {
-          setProvince(detected);
           setSuggestedProvince(detected);
         }
 
@@ -417,7 +417,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 (p) => p.label.toLowerCase() === geo.province?.toLowerCase() || p.id.toLowerCase() === geo.province?.toLowerCase()
               );
               if (matched) {
-                setProvince(matched.id);
                 setSuggestedProvince(matched.id);
               }
             }
@@ -479,6 +478,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         setCurrentStep(0);
       }
 
+      // Do not default the province on open: let motorist or dispatcher select it
+      setProvince(null);
+      userSelectedProvinceManualRef.current = false;
+
       if (prefilledTitle) {
         setRoadLocation(prefilledTitle);
       } else {
@@ -496,7 +499,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         setGpsStatusText('GPS Locked ✓');
         const detected = detectRegionFromCoords(prefilledLat, prefilledLng);
         if (detected && detected !== 'all') {
-          setProvince(detected);
           setSuggestedProvince(detected);
         }
       } else if (autoDetectGps || prefilledOnScene) {
@@ -515,7 +517,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           setGpsStatusText(cached.accuracy && cached.accuracy <= 50 ? `GPS Locked (±${cached.accuracy}m) ✓` : 'GPS Locked ✓');
           const detected = detectRegionFromCoords(cached.latitude, cached.longitude);
           if (detected && detected !== 'all') {
-            setProvince(detected);
             setSuggestedProvince(detected);
           }
         }
@@ -537,7 +538,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         if (cached) {
           const detected = detectRegionFromCoords(cached.latitude, cached.longitude);
           if (detected && detected !== 'all') {
-            setProvince(detected);
             setSuggestedProvince(detected);
           }
         }
@@ -593,6 +593,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   const handleSelectProvince = (pId: SARegionId) => {
     setProvince(pId);
+    userSelectedProvinceManualRef.current = true;
   };
 
   const handleRoadLocationChange = (val: string) => {
@@ -609,7 +610,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     setIsSearchingRoad(true);
     roadSearchTimeoutRef.current = setTimeout(async () => {
       try {
-        const query = `${val.trim()}, ${province}`;
+        const provQuery = province || suggestedProvince || 'South Africa';
+        const query = `${val.trim()}, ${provQuery}`;
         const results = await searchAddress(query);
         if (results && results.length > 0) {
           setRoadSuggestions(results.slice(0, 5));
@@ -645,8 +647,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     
     const detected = detectRegionFromCoords(item.lat, item.lng);
     if (detected && detected !== 'all') {
-      setProvince(detected);
       setSuggestedProvince(detected);
+      if (!userSelectedProvinceManualRef.current) {
+        setProvince(detected);
+      }
     }
   };
 
@@ -675,8 +679,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       setRoadLocation(reverseRoad);
     }
     if (detectedProv && detectedProv !== 'all') {
-      setProvince(detectedProv);
       setSuggestedProvince(detectedProv);
+      if (!userSelectedProvinceManualRef.current) {
+        setProvince(detectedProv);
+      }
     }
     setGpsSource('cache');
     setGpsAccuracy(10);
@@ -813,8 +819,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
       const detected = detectRegionFromCoords(parsed.latitude, parsed.longitude);
       if (detected && detected !== 'all') {
-        setProvince(detected);
         setSuggestedProvince(detected);
+        if (!userSelectedProvinceManualRef.current) {
+          setProvince(detected);
+        }
       }
 
       try {
@@ -949,6 +957,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     const userRole = isUserAdmin ? (currentUser?.role || adminSession?.role || 'admin') : (currentUser?.role || 'user');
     const userEmail = currentUser?.email || adminSession?.email || undefined;
 
+    const finalProvince = province || suggestedProvince || 'Gauteng';
+
     setIsSubmitting(true);
     try {
       await onSubmitReport({
@@ -976,7 +986,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         isAdmin: isUserAdmin,
         userRole,
         reporterEmail: userEmail,
-        province,
+        province: finalProvince,
+        region: finalProvince,
         trafficImpact,
         authoritiesOnScene,
         additionalRoads: extraRoads,
@@ -1500,30 +1511,35 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                           </div>
 
                           {/* Quick Highway / Route Chips for Selected Province */}
-                          {POPULAR_PROVINCE_HIGHWAYS[province] && POPULAR_PROVINCE_HIGHWAYS[province].length > 0 && (
-                            <div className="pt-1">
-                              <div className="flex items-center space-x-1.5 text-[11px] text-slate-400 mb-1.5">
-                                <Navigation className="w-3 h-3 text-cyan-400" />
-                                <span>Quick Corridors in {province}:</span>
+                          {(() => {
+                            const activeProv = province || suggestedProvince || 'Gauteng';
+                            const corridors = POPULAR_PROVINCE_HIGHWAYS[activeProv] || POPULAR_PROVINCE_HIGHWAYS['all'];
+                            if (!corridors || corridors.length === 0) return null;
+                            return (
+                              <div className="pt-1">
+                                <div className="flex items-center space-x-1.5 text-[11px] text-slate-400 mb-1.5">
+                                  <Navigation className="w-3 h-3 text-cyan-400" />
+                                  <span>Quick Corridors in {activeProv}:</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {corridors.map((hwy) => (
+                                    <button
+                                      key={hwy}
+                                      type="button"
+                                      onClick={() => handleSelectHighwayChip(hwy)}
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                                        roadLocation.toLowerCase().includes(hwy.toLowerCase())
+                                          ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20'
+                                          : 'bg-[#121B2B] border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white'
+                                      }`}
+                                    >
+                                      {hwy}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {POPULAR_PROVINCE_HIGHWAYS[province].map((hwy) => (
-                                  <button
-                                    key={hwy}
-                                    type="button"
-                                    onClick={() => handleSelectHighwayChip(hwy)}
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                                      roadLocation.toLowerCase().includes(hwy.toLowerCase())
-                                        ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20'
-                                        : 'bg-[#121B2B] border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white'
-                                    }`}
-                                  >
-                                    {hwy}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Location status badge */}
                           {isOnScene === 'yes' && latitude !== null && longitude !== null && (
@@ -1623,11 +1639,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                           {showLocationPickerMap && (
                             <div className="mt-1">
                               <ReportLocationPickerMap
-                                latitude={latitude ?? (PROVINCE_CENTROIDS[province]?.lat || -25.9895)}
-                                longitude={longitude ?? (PROVINCE_CENTROIDS[province]?.lng || 28.1284)}
+                                latitude={latitude ?? (PROVINCE_CENTROIDS[province || suggestedProvince || 'Gauteng']?.lat || -25.9895)}
+                                longitude={longitude ?? (PROVINCE_CENTROIDS[province || suggestedProvince || 'Gauteng']?.lng || 28.1284)}
                                 accuracy={gpsAccuracy}
                                 source={gpsSource}
-                                province={province}
+                                province={province || suggestedProvince || 'Gauteng'}
                                 roadLocation={roadLocation}
                                 onChangeLocation={handleLocationChangedFromMap}
                                 onDetectGps={() => detectUserLocation(true)}
@@ -2246,6 +2262,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   onClick={() => setCurrentStep(currentStep + 1)}
                   disabled={
                     (currentStep === 1 && !type) ||
+                    (currentStep === 2 && !province) ||
                     (currentStep === 3 && (
                       isOnScene === 'none'
                         ? false

@@ -58,6 +58,7 @@ export interface IncidentReport {
   locationName?: string;
   roadName?: string;
   region?: string;
+  province?: string;
   imageUrl?: string;
   status: ReportStatus;
   severity: SeverityLevel;
@@ -240,6 +241,7 @@ export interface FeedItem {
   latitude?: number;
   longitude?: number;
   region?: string;
+  province?: string;
   views?: number;
   upvotes?: number;
   downvotes?: number;
@@ -373,6 +375,25 @@ export interface AdminUserAccount {
   status: 'active' | 'suspended';
   registeredAt: string;
   lastLoginAt?: string;
+}
+
+export interface NewUserRegistrationAlert {
+  id: string;
+  userId: string;
+  fullName: string;
+  surname: string;
+  email: string;
+  cellNumber: string;
+  userCategory?: UserCategory;
+  organizationName?: string;
+  coverageArea?: string;
+  responderType?: string;
+  responderCallsign?: string;
+  responderApprovalStatus?: ResponderApprovalStatus;
+  companyName?: string;
+  role: string;
+  registeredAt: string;
+  timestamp: number;
 }
 
 export interface CustomKeywordTagRule {
@@ -982,18 +1003,111 @@ export interface TripBuddyPricingPass {
 export interface UserTripPassWallet {
   userId: string;
   email: string;
-  activePassType?: 'single' | 'commuter_pack' | 'monthly_unlimited' | 'none';
+  activePassType?: 'single' | 'commuter_pack' | 'monthly_unlimited' | 'lift_club_monthly' | 'none';
   remainingTrips: number;
   unlimitedUntil?: string;
   purchasedAt?: string;
   totalTripsCompleted: number;
   redeemedPromoCodes?: string[];
   lastPromoRedeemed?: string;
+  hasLiftClubAccess?: boolean;
 }
 
 // ==========================================
-// LIVE TRAFFIC HIGHWAY CAMERAS (CCTV) TYPES
+// TRIP BUDDY: WORK COMMUTE & LIFT CLUB TYPES
 // ==========================================
+
+export type LiftClubRole = 'driver' | 'passenger';
+export type VerificationBadgeLevel = 'unverified' | 'pending' | 'verified_member' | 'verified_driver';
+
+export interface UserIdentityVerification {
+  userId: string;
+  fullName: string;
+  idNumber?: string;
+  idType: 'rsa_id' | 'smart_card' | 'drivers_license' | 'passport';
+  selfiePhotoUrl?: string;
+  idDocPhotoUrl?: string;
+  idDocBackPhotoUrl?: string;
+  licenseNumber?: string;
+  licenseExpiry?: string;
+  vehicleMakeModel?: string;
+  vehicleColor?: string;
+  vehiclePlate?: string;
+  vehicleYear?: string;
+  status: 'unverified' | 'pending_review' | 'verified' | 'rejected';
+  verifiedAt?: string;
+  verifiedBadges: string[];
+  submittedAt: string;
+  notes?: string;
+}
+
+export interface LiftClubListing {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  userEmail?: string;
+  userAvatar?: string;
+  role: LiftClubRole; // 'driver' = offering lift; 'passenger' = seeking driver
+  verificationStatus: VerificationBadgeLevel;
+  originArea: string; // e.g. "Pretoria East (Faerie Glen / Menlyn)"
+  originCoords?: { lat: number; lng: number };
+  destinationArea: string; // e.g. "Sandton CBD / Rivonia, Johannesburg"
+  destinationCoords?: { lat: number; lng: number };
+  corridor: string; // e.g. "N1 Ben Schoeman / JHB-PTA", "N3 Durban-PMB", "R21 Airport", "Cape Town N1/N2"
+  departureTime: string; // e.g. "06:45 AM"
+  returnTime?: string; // e.g. "17:15 PM"
+  recurringDays: string[]; // e.g. ["Mon", "Tue", "Wed", "Thu", "Fri"]
+  availableSeats?: number; // for drivers (e.g. 1 to 4)
+  seatsRequested?: number; // for passengers
+  vehicleDetails?: {
+    makeModel: string;
+    color: string;
+    licensePlate: string;
+    year?: string;
+  };
+  contributionZAR: number; // e.g. 45 (or 0 if covered under monthly pass)
+  coveredByMonitoringPass?: boolean;
+  notes?: string;
+  activeDispatch?: {
+    status: 'idle' | 'leaving_now' | 'arrived_pickup' | 'onboard' | 'completed';
+    dispatchedAt?: string;
+    etaMinutes?: number;
+    driverLat?: number;
+    driverLng?: number;
+    trackingToken?: string;
+    matchedPassengerName?: string;
+    matchedPassengerPhone?: string;
+  };
+  matchedBuddiesCount?: number;
+  status: 'active' | 'full' | 'paused' | 'completed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ==========================================
+// APP LIKES & MOTORIST APPRECIATION TYPES
+// ==========================================
+
+export interface AppLikeRecord {
+  id: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  userRole?: string;
+  region?: string;
+  note?: string;
+  clientIp?: string;
+  userAgent?: string;
+  createdAt: string;
+}
+
+export interface AppLikesSummary {
+  totalLikes: number;
+  recentLikes: AppLikeRecord[];
+  hasLiked?: boolean;
+}
+
 
 export interface TrafficCamera {
   id: string;

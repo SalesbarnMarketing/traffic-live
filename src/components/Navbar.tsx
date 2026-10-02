@@ -206,7 +206,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ? 'bg-cyan-400 text-slate-950 border-cyan-300 font-black shadow-[0_0_12px_rgba(6,182,212,0.6)]'
                 : 'bg-[#040810] hover:bg-[#0A1220] text-cyan-300 hover:text-cyan-100 border-cyan-500/60'
             }`}
-            title="SANRAL i-Traffic Highway Travel Times & Live Speeds (Gauteng)"
+            title="Highway Travel Times & Live Speeds (Gauteng)"
           >
             <Clock className="w-3.5 h-3.5 text-cyan-400" />
             <span>Travel Times</span>
@@ -341,7 +341,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Shield className="w-4 h-4 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
                 <span className="font-black">
-                  {isTripActive ? 'ACTIVE TRIP' : 'TRIP BUDDY'}
+                  {isTripActive ? 'TRACKING TRIP' : 'TRIP TRACKER'}
                 </span>
                 {isTripActive && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping hidden md:inline-block" />
@@ -417,8 +417,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={onOpenLocationCheck}
                   className="w-9 h-9 sm:w-11 sm:h-11 rounded-full border border-[#D4A237]/80 hover:border-[#D4A237] bg-[#000000] hover:bg-[#070D18] text-[#D4A237] flex items-center justify-center transition shadow-md cursor-pointer shrink-0 group"
-                  title="Double-Check Device GPS & Location Status"
-                  aria-label="Check Device GPS"
+                  title="Location & GPS Settings"
+                  aria-label="Location & GPS Settings"
                 >
                   <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-[#D4A237] group-hover:rotate-45 transition-transform duration-300" />
                 </button>
@@ -625,9 +625,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <Compass className="w-4 h-4 text-[#D4A237]" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold text-slate-200 truncate">GPS Diagnostics</div>
+                          <div className="font-bold text-slate-200 truncate">Location & GPS Settings</div>
                           <p className="text-[10px] text-slate-400 truncate">
-                            Verify device GPS & coordinate lock
+                            Configure GPS, area & diagnostics
                           </p>
                         </div>
                       </button>

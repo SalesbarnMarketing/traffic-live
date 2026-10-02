@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import webpush from "web-push";
+import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import {
@@ -80,10 +81,28 @@ import {
 const app = express();
 const PORT = 3000;
 
+// Enable CORS and allow third-party embeds & full geolocation/camera permissions
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-user-role, x-user-name, x-user-surname, x-user-email");
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Permissions-Policy", "geolocation=(self \"*\"), camera=(self \"*\"), microphone=(self \"*\"), display-capture=(self \"*\"), clipboard-read=(self \"*\"), clipboard-write=(self \"*\")");
+  res.setHeader("Feature-Policy", "geolocation *; camera *; microphone *; display-capture *; clipboard-read *; clipboard-write *");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
 // Application Version and Build Metadata
-export const APP_VERSION = "2.10.0";
-export const SERVER_BOOT_TIME = Date.now();
-export const BUILD_ID = `v2.10.0-${SERVER_BOOT_TIME}`;
+export const APP_VERSION = "2.12.0";
+export const SERVER_BOOT_TIME = 1759276800000;
+export const BUILD_ID = `v2.12.0`;
 
 // Version Check Endpoint for dynamic in-app reload notifications
 app.get("/api/version", (req, res) => {
@@ -94,7 +113,77 @@ app.get("/api/version", (req, res) => {
     bootTime: SERVER_BOOT_TIME,
     timestamp: Date.now(),
     appName: "LiveTrafficNPC",
-    releaseNotes: "Enforce automated fresh version reload for anonymous connections, optimized presence synchronization, and upgraded live traffic alerts."
+    releaseNotes: "v2.12.0: Outbound SMTP transactional email integration (techrix365.com), streamlined feed action bar, Techrix365 partner card copy refresh, and deterministic client update notifications."
+  });
+});
+
+// IP-Based Geolocation Fallback Endpoint (Used when browser GPS is blocked by iframe permissions or user policy)
+app.get("/api/user-ip-location", async (req, res) => {
+  try {
+    const rawIp = (req.headers["cf-connecting-ip"] ||
+      req.headers["x-forwarded-for"] ||
+      req.headers["x-real-ip"] ||
+      req.socket.remoteAddress || "") as string;
+    
+    // Pick the first IP if multiple exist in x-forwarded-for
+    const clientIp = rawIp.split(",")[0].trim().replace(/^::ffff:/, "");
+
+    // Check if IP is valid public IPv4/IPv6 (not 127.0.0.1, localhost, or private range)
+    const isPrivate = !clientIp || 
+      clientIp === "127.0.0.1" || 
+      clientIp === "::1" || 
+      clientIp.startsWith("10.") || 
+      clientIp.startsWith("192.168.") || 
+      clientIp.startsWith("172.16.") ||
+      clientIp.startsWith("172.17.") ||
+      clientIp.startsWith("172.18.") ||
+      clientIp.startsWith("172.19.") ||
+      clientIp.startsWith("172.2") ||
+      clientIp.startsWith("172.30.") ||
+      clientIp.startsWith("172.31.");
+
+    const ipQueryUrl = isPrivate 
+      ? "http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,query" 
+      : `http://ip-api.com/json/${encodeURIComponent(clientIp)}?fields=status,message,country,countryCode,region,regionName,city,lat,lon,timezone,isp,query`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const response = await fetch(ipQueryUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.status === "success" && typeof data.lat === "number" && typeof data.lon === "number") {
+        return res.json({
+          success: true,
+          city: data.city || "South Africa",
+          regionName: data.regionName || "Gauteng",
+          country: data.country || "South Africa",
+          countryCode: data.countryCode || "ZA",
+          lat: data.lat,
+          lng: data.lon,
+          isp: data.isp || "Cellular / Broadband Network",
+          source: "ip_lookup",
+          accuracy: 15000
+        });
+      }
+    }
+  } catch (err) {
+    // Graceful fallback if external IP service is unreachable
+  }
+
+  // If IP lookup fails, return Johannesburg / Central Gauteng default instead of hardcoded Arcadia
+  res.json({
+    success: false,
+    city: "Johannesburg",
+    regionName: "Gauteng",
+    country: "South Africa",
+    countryCode: "ZA",
+    lat: -26.2041,
+    lng: 28.0473,
+    source: "default_fallback",
+    accuracy: 25000
   });
 });
 
@@ -164,22 +253,6 @@ function generatePayfastSignature(data: Record<string, string>, passphrase = PAY
   }
   return crypto.createHash("md5").update(getString).digest("hex");
 }
-
-// Enable CORS and allow third-party embeds
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
-  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Serve advertisement creative assets directly with CORS and caching
 const publicAdsDir = path.join(process.cwd(), "public", "ads");
@@ -376,6 +449,52 @@ export interface RegisteredUserAccount {
   status?: 'active' | 'suspended';
   registeredAt: string;
   lastLoginAt?: string;
+}
+
+export interface NewUserRegistrationAlert {
+  id: string;
+  userId: string;
+  fullName: string;
+  surname: string;
+  email: string;
+  cellNumber: string;
+  userCategory?: UserCategory;
+  organizationName?: string;
+  coverageArea?: string;
+  responderType?: string;
+  responderCallsign?: string;
+  responderApprovalStatus?: ResponderApprovalStatus;
+  companyName?: string;
+  role: string;
+  registeredAt: string;
+  timestamp: number;
+}
+
+let newUserRegistrationAlerts: NewUserRegistrationAlert[] = [];
+
+function recordNewUserRegistration(user: RegisteredUserAccount) {
+  const alert: NewUserRegistrationAlert = {
+    id: `alert-reg-${user.id || user.email}-${Date.now()}`,
+    userId: user.id,
+    fullName: user.fullName,
+    surname: user.surname,
+    email: user.email,
+    cellNumber: user.cellNumber,
+    userCategory: user.userCategory || (user.companyName ? 'advertiser' : 'community'),
+    organizationName: user.organizationName || user.companyName,
+    coverageArea: user.coverageArea,
+    responderType: user.responderType,
+    responderCallsign: user.responderCallsign,
+    responderApprovalStatus: user.responderApprovalStatus || 'none',
+    companyName: user.companyName,
+    role: user.role || 'user',
+    registeredAt: user.registeredAt || new Date().toISOString(),
+    timestamp: Date.now()
+  };
+  newUserRegistrationAlerts.unshift(alert);
+  if (newUserRegistrationAlerts.length > 50) {
+    newUserRegistrationAlerts = newUserRegistrationAlerts.slice(0, 50);
+  }
 }
 
 let reports: IncidentReport[] = [...INITIAL_REPORTS];
@@ -1038,6 +1157,33 @@ let registeredUsers: RegisteredUserAccount[] = [...DEFAULT_ADMIN_USERS];
 let communityHeroes: any[] = JSON.parse(JSON.stringify(SEED_COMMUNITY_HEROES));
 let tripBuddyPlans: any[] = [];
 let userTripPassWallets: any[] = [];
+let liftClubListings: any[] = [];
+let userIdentityVerifications: any[] = [];
+let appLikes: Array<{
+  id: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  userRole?: string;
+  region?: string;
+  note?: string;
+  clientIp?: string;
+  userAgent?: string;
+  createdAt: string;
+}> = [];
+
+export interface PasswordResetTokenRecord {
+  token: string;
+  email: string;
+  expiresAt: string;
+  createdAt: string;
+  used: boolean;
+  usedAt?: string;
+  ip?: string;
+  resetUrl?: string;
+}
+
+let passwordResetTokens: Record<string, PasswordResetTokenRecord> = {};
 
 function isAdminAuthorized(req: express.Request): boolean {
   // If the request explicitly declares that this is a regular motorist / user post, reject admin attribution
@@ -1284,32 +1430,32 @@ function isChiefAdminAuthorized(req: express.Request): boolean {
   const userEmail = (req.headers['x-user-email'] || req.headers['x-admin-email'] || '') as string;
   const cleanEmail = userEmail ? userEmail.toLowerCase().trim() : '';
 
-  if (userRole === 'user' || userRole === 'member' || userRole === 'advertiser') {
-    return false;
+  // 1. Direct Chief Administrator Email Validation
+  if (
+    cleanEmail === 'charlesodendaal43@gmail.com' ||
+    cleanEmail === 'charles@salesbarn.co.za' ||
+    cleanEmail === 'charles2@salesbarn.co.za' ||
+    cleanEmail.includes('charlesodendaal43')
+  ) {
+    return true;
   }
 
-  if (!token) {
-    return false;
-  }
-
+  // 2. Direct Chief Administrator Token Validation
   if (
     token === 'admin-auth-token-charlesodendaal43' ||
     token === 'admin-auth-token-usr-admin-charles' ||
     token === 'admin-auth-token-charlessalesbarn' ||
     token === 'admin-authenticated-secret'
   ) {
-    if (
-      cleanEmail &&
-      cleanEmail !== 'charlesodendaal43@gmail.com' &&
-      cleanEmail !== 'charles@salesbarn.co.za' &&
-      cleanEmail !== 'charles2@salesbarn.co.za'
-    ) {
-      const found = registeredUsers.find(u => u.email.toLowerCase() === cleanEmail);
-      if (found && found.role !== 'super_admin') {
-        return false;
-      }
-    }
     return true;
+  }
+
+  if (userRole === 'user' || userRole === 'member' || userRole === 'advertiser') {
+    return false;
+  }
+
+  if (!token) {
+    return false;
   }
 
   if (token.startsWith('admin-auth-token-')) {
@@ -2437,6 +2583,73 @@ async function sendNewUserSignupPushNotification(user: RegisteredUserAccount) {
   console.log(`[Push] Dispatched new user signup notification for ${user.email} to ${activeSubs.length - expiredIds.length} admin device(s).`);
 }
 
+async function sendAppLikePushNotification(like: {
+  id: string;
+  userName?: string;
+  userEmail?: string;
+  userRole?: string;
+  region?: string;
+  note?: string;
+}) {
+  if (!pushSettings.enabled) return;
+
+  const activeSubs = adminPushSubscriptions.filter((s) => s.enabled);
+  if (activeSubs.length === 0) return;
+
+  const title = '❤️ Motorist Liked Live Traffic App!';
+  const name = like.userName || (like.userEmail ? like.userEmail.split('@')[0] : 'South African Motorist');
+  const details = [
+    `❤️ ${name} liked the app`,
+    like.region ? `📍 ${like.region}` : null,
+    like.note ? `"${like.note}"` : null
+  ].filter(Boolean).join(' • ');
+
+  const payload = JSON.stringify({
+    title,
+    body: details,
+    icon: '/icon.svg',
+    badge: '/icon.svg',
+    tag: `app-like-${like.id}`,
+    silent: !pushSettings.soundAlert,
+    vibrate: pushSettings.vibrationAlert ? [100, 50, 100] : undefined,
+    data: {
+      url: '/?view=admin&tab=feedback',
+      likeId: like.id,
+      userName: like.userName,
+      type: 'app_like'
+    },
+    actions: [
+      { action: 'open_feedback', title: '💬 View in Admin Feedback' }
+    ]
+  });
+
+  const expiredIds: string[] = [];
+
+  for (const sub of activeSubs) {
+    try {
+      await webpush.sendNotification(
+        {
+          endpoint: sub.endpoint,
+          keys: sub.keys
+        },
+        payload,
+        { TTL: 86400, urgency: 'normal' }
+      );
+    } catch (err: any) {
+      if (err?.statusCode === 410 || err?.statusCode === 404) {
+        expiredIds.push(sub.id);
+      }
+    }
+  }
+
+  if (expiredIds.length > 0) {
+    adminPushSubscriptions = adminPushSubscriptions.filter((s) => !expiredIds.includes(s.id));
+    saveDataStore();
+  }
+
+  console.log(`[Push] Dispatched app like notification from ${name} to ${activeSubs.length - expiredIds.length} admin device(s).`);
+}
+
 function logActivity(
   category: ActivityLogCategory,
   level: ActivityLogLevel,
@@ -2490,8 +2703,12 @@ function ensureDefaultAccounts() {
     if (!existing) {
       registeredUsers.push({ ...defaultUser });
     } else {
-      if (!existing.role) existing.role = defaultUser.role;
-      if (!existing.status) existing.status = defaultUser.status || "active";
+      if (defaultUser.role === 'super_admin') {
+        existing.role = 'super_admin';
+      } else if (!existing.role) {
+        existing.role = defaultUser.role;
+      }
+      existing.status = 'active';
       if (!existing.fullName && defaultUser.fullName) existing.fullName = defaultUser.fullName;
       if (!existing.surname && defaultUser.surname) existing.surname = defaultUser.surname;
     }
@@ -2778,6 +2995,24 @@ function loadDataStore() {
       if (Array.isArray(parsed.userTripPassWallets)) {
         userTripPassWallets = parsed.userTripPassWallets;
       }
+      if (Array.isArray(parsed.liftClubListings)) {
+        liftClubListings = parsed.liftClubListings;
+      }
+      if (Array.isArray(parsed.userIdentityVerifications)) {
+        userIdentityVerifications = parsed.userIdentityVerifications;
+      }
+      if (Array.isArray(parsed.appLikes)) {
+        appLikes = parsed.appLikes;
+      }
+      if (Array.isArray(parsed.feedbackItems)) {
+        feedbackItems = parsed.feedbackItems;
+      }
+      if (Array.isArray(parsed.newUserRegistrationAlerts)) {
+        newUserRegistrationAlerts = parsed.newUserRegistrationAlerts;
+      }
+      if (parsed.passwordResetTokens && typeof parsed.passwordResetTokens === 'object') {
+        passwordResetTokens = parsed.passwordResetTokens;
+      }
       ensureDefaultAccounts();
       ensureDefaultAdverts();
       initVapidKeys();
@@ -2861,7 +3096,13 @@ function saveDataStore(syncRemote = true) {
       communityHeroes,
       feedConnectionHistory24h,
       tripBuddyPlans,
-      userTripPassWallets
+      userTripPassWallets,
+      liftClubListings,
+      userIdentityVerifications,
+      appLikes,
+      feedbackItems,
+      passwordResetTokens,
+      newUserRegistrationAlerts: newUserRegistrationAlerts.slice(0, 50)
     };
     const jsonStr = JSON.stringify(payload, null, 2);
     const tempFile = `${DATA_FILE}.tmp`;
@@ -3896,6 +4137,7 @@ app.post(["/api/auth/register", "/api/auth/advertiser/register"], (req, res) => 
 
     saveDataStore(true);
     saveSingleUserToFirestore(newUser);
+    recordNewUserRegistration(newUser);
 
     // Dispatch real-time push notification to all registered Admin & Dispatch devices
     sendNewUserSignupPushNotification(newUser).catch(err => {
@@ -4123,6 +4365,489 @@ app.post("/api/auth/change-password", (req, res) => {
   }
 });
 
+// 0.31. Forgot Password / Password Reset Request Endpoint
+app.post(["/api/auth/forgot-password", "/api/auth/request-password-reset"], async (req, res) => {
+  try {
+    const { email, callbackUrl } = req.body || {};
+    const cleanEmail = email ? email.trim().toLowerCase() : "";
+
+    if (!cleanEmail) {
+      return res.status(400).json({ error: "Please enter your registered email address." });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ error: "Please provide a valid email address (e.g. user@example.co.za)." });
+    }
+
+    // Lookup user in local memory
+    let user = registeredUsers.find(u => u.email.toLowerCase() === cleanEmail);
+
+    // If not found in memory, check DEFAULT_ADMIN_USERS
+    if (!user) {
+      const defaultMatch = DEFAULT_ADMIN_USERS.find(d => d.email.toLowerCase() === cleanEmail);
+      if (defaultMatch) {
+        user = { ...defaultMatch };
+        registeredUsers.push(user);
+        saveDataStore(true);
+      }
+    }
+
+    // If still not found, check remote Firestore
+    if (!user) {
+      try {
+        const remoteUser = await fetchSingleUserFromFirestore(cleanEmail);
+        if (remoteUser && remoteUser.email) {
+          user = remoteUser;
+          registeredUsers.push(user);
+          saveDataStore(false);
+        }
+      } catch (_) {}
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        error: "No account found with this email address. Please check the email spelling or register a new account."
+      });
+    }
+
+    if (user.status === "suspended") {
+      return res.status(403).json({
+        error: "This account is currently suspended. Please contact the Live Traffic Administrator."
+      });
+    }
+
+    // Generate secure cryptographic token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour expiry
+    const clientIp = getClientIp(req);
+
+    const baseAppUrl = callbackUrl && typeof callbackUrl === 'string' && callbackUrl.startsWith('http')
+      ? callbackUrl.replace(/\/?$/, '/')
+      : "https://trafficlive.co.za/app/";
+
+    const resetUrl = `${baseAppUrl}?action=reset-password&token=${token}&email=${encodeURIComponent(cleanEmail)}`;
+
+    // Invalidate any previous unused tokens for this email
+    Object.values(passwordResetTokens).forEach(t => {
+      if (t.email.toLowerCase() === cleanEmail && !t.used) {
+        t.used = true;
+      }
+    });
+
+    const resetRecord: PasswordResetTokenRecord = {
+      token,
+      email: cleanEmail,
+      expiresAt,
+      createdAt: new Date().toISOString(),
+      used: false,
+      ip: clientIp,
+      resetUrl
+    };
+
+    passwordResetTokens[token] = resetRecord;
+    saveDataStore(false);
+
+    // Dispatch real email via SMTP / Transporter if credentials are configured
+    let emailSent = false;
+    let emailDispatchError: string | null = null;
+
+    const smtpUser = process.env.SMTP_USER || "info@techrix365.com";
+    const smtpPass = process.env.SMTP_PASS || "HR(0C)-{~JMP~uvW";
+    const smtpHost = process.env.SMTP_HOST || "mail.techrix365.com";
+    const smtpPort = parseInt(process.env.SMTP_PORT || "465", 10);
+    const smtpSecure = process.env.SMTP_SECURE === "true" || smtpPort === 465 || process.env.SMTP_SECURE === undefined;
+
+    if (smtpHost && smtpUser && smtpPass) {
+      try {
+        const fromAddress = process.env.SMTP_FROM || `"Live Traffic NPC" <${smtpUser}>`;
+
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpSecure,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass
+          },
+          tls: {
+            rejectUnauthorized: false
+          },
+          connectionTimeout: 4000,
+          greetingTimeout: 4000,
+          socketTimeout: 4000
+        });
+
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #070A10; color: #E2E8F0; margin: 0; padding: 24px; }
+    .card { background-color: #0F131C; border: 1px solid #D4A237; border-radius: 16px; max-width: 540px; margin: 0 auto; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .logo { color: #D4A237; font-size: 20px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 24px; text-align: center; }
+    .btn { display: inline-block; background-color: #D4A237; color: #070A10; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0; }
+    .footer { font-size: 12px; color: #94A3B8; border-top: 1px solid #1E293B; margin-top: 32px; padding-top: 16px; text-align: center; }
+    .link-box { word-break: break-all; background: #070A10; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 11px; color: #D4A237; border: 1px solid #334155; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🚨 Live Traffic NPC • Password Reset</div>
+    <p style="font-size: 16px; font-weight: 700; color: #FFFFFF;">Hello ${user.fullName || 'Member'},</p>
+    <p style="font-size: 14px; line-height: 1.6; color: #CBD5E1;">
+      We received a request to reset your password for your Live Traffic NPC account (<strong>${cleanEmail}</strong>).
+    </p>
+    <div style="text-align: center;">
+      <a href="${resetUrl}" class="btn" target="_blank">Reset My Password</a>
+    </div>
+    <p style="font-size: 12px; color: #94A3B8; line-height: 1.5;">
+      This link is valid for <strong>60 minutes</strong> and can only be used once. If you did not make this request, you can safely ignore this email.
+    </p>
+    <p style="font-size: 12px; color: #94A3B8; margin-top: 20px;">Or copy and paste this link into your browser:</p>
+    <div class="link-box">${resetUrl}</div>
+    <div class="footer">
+      Live Traffic NPC • 24/7 Roadside Safety & Highway Intelligence Network<br>
+      <a href="https://trafficlive.co.za" style="color: #D4A237; text-decoration: none;">trafficlive.co.za</a>
+    </div>
+  </div>
+</body>
+</html>
+        `;
+
+        await transporter.sendMail({
+          from: fromAddress,
+          to: cleanEmail,
+          subject: "🔐 Reset Your Live Traffic NPC Account Password",
+          text: `Hello ${user.fullName || 'Member'},\n\nWe received a request to reset your password for your Live Traffic NPC account.\n\nClick the link below to set a new password:\n${resetUrl}\n\nThis link is valid for 60 minutes.\n\nLive Traffic NPC Team`,
+          html: htmlContent
+        });
+
+        emailSent = true;
+        console.log(`[Auth Reset Email] Successfully dispatched reset email via SMTP to ${cleanEmail}`);
+      } catch (smtpErr: any) {
+        emailDispatchError = smtpErr?.message || 'SMTP sending failed';
+        console.warn(`[Auth Reset Email] SMTP dispatch notice for ${cleanEmail}:`, emailDispatchError);
+      }
+    } else {
+      console.log(`[Auth Reset Email] SMTP not configured in environment (SMTP_HOST/SMTP_USER). Link ready: ${resetUrl}`);
+    }
+
+    logActivity(
+      'auth',
+      'info',
+      `Password Reset Requested: ${user.fullName} (${cleanEmail})`,
+      `Password reset link generated for ${cleanEmail} (valid for 60 minutes). Destination: ${resetUrl}`,
+      {
+        actor: user.fullName,
+        actorEmail: cleanEmail,
+        actorRole: user.role,
+        ip: clientIp,
+        metadata: { tokenPrefix: token.substring(0, 8), expiresAt, emailSent, emailDispatchError }
+      }
+    );
+
+    console.log(`[Auth Reset] Password reset token ready for ${cleanEmail}`);
+
+    return res.json({
+      success: true,
+      emailSent,
+      emailDispatchError: emailDispatchError || undefined,
+      token,
+      resetUrl,
+      message: emailSent
+        ? `A secure password reset link has been dispatched to ${cleanEmail}. Please check your email inbox and spam folder.`
+        : `Password reset link generated for ${cleanEmail}. You can reset your password immediately using the button below.`,
+      email: cleanEmail,
+      expiresInMinutes: 60
+    });
+  } catch (err: any) {
+    console.error("Forgot password error:", err);
+    return res.status(500).json({ error: "Failed to generate password reset link. Please try again." });
+  }
+});
+
+// 0.31b. Test SMTP Connection Endpoint
+app.post("/api/auth/test-smtp", async (req, res) => {
+  try {
+    const targetEmail = (req.body?.email || "salesbarnmarketing101@gmail.com").trim().toLowerCase();
+    const smtpUser = process.env.SMTP_USER || "info@techrix365.com";
+    const smtpPass = process.env.SMTP_PASS || "HR(0C)-{~JMP~uvW";
+    const smtpHost = process.env.SMTP_HOST || "mail.techrix365.com";
+    const smtpPort = parseInt(process.env.SMTP_PORT || "465", 10);
+    const smtpSecure = process.env.SMTP_SECURE === "true" || smtpPort === 465 || process.env.SMTP_SECURE === undefined;
+    const fromAddress = process.env.SMTP_FROM || `"Live Traffic NPC" <${smtpUser}>`;
+
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 4000,
+      greetingTimeout: 4000,
+      socketTimeout: 4000
+    });
+
+    await transporter.verify();
+
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to: targetEmail,
+      subject: "🚨 Live Traffic NPC • SMTP Test Verification",
+      text: "This is a test verification email confirming that the Live Traffic NPC mail transport is active.",
+      html: `
+        <div style="font-family: sans-serif; background-color: #070A10; color: #E2E8F0; padding: 24px; border-radius: 12px; border: 1px solid #D4A237;">
+          <h2 style="color: #D4A237; margin-top: 0;">🚨 Live Traffic NPC • SMTP Connected</h2>
+          <p>This test email confirms that your outgoing mail server (<strong>${smtpHost}:${smtpPort}</strong>) using account <strong>${smtpUser}</strong> is verified and working!</p>
+          <p style="font-size: 12px; color: #94A3B8;">Timestamp: ${new Date().toISOString()}</p>
+        </div>
+      `
+    });
+
+    return res.json({
+      success: true,
+      message: `Test email successfully sent to ${targetEmail}`,
+      messageId: info.messageId,
+      host: smtpHost,
+      port: smtpPort,
+      user: smtpUser
+    });
+  } catch (err: any) {
+    console.error("Test SMTP error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Failed to connect to SMTP server"
+    });
+  }
+});
+
+// 0.32. Verify Password Reset Token Endpoint
+app.post("/api/auth/verify-reset-token", (req, res) => {
+  try {
+    const { token, email } = req.body || {};
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ valid: false, error: "Reset token is required." });
+    }
+
+    const cleanToken = token.trim();
+    const cleanEmail = email ? email.trim().toLowerCase() : "";
+
+    const record = passwordResetTokens[cleanToken];
+    if (!record) {
+      return res.status(400).json({ valid: false, error: "Invalid or unrecognized reset token. Please request a new link." });
+    }
+
+    if (record.used) {
+      return res.status(400).json({ valid: false, error: "This password reset link has already been used. Please request a new one." });
+    }
+
+    if (new Date(record.expiresAt).getTime() < Date.now()) {
+      return res.status(400).json({ valid: false, error: "This password reset link has expired (links are valid for 60 minutes). Please request a new link." });
+    }
+
+    if (cleanEmail && record.email.toLowerCase() !== cleanEmail) {
+      return res.status(400).json({ valid: false, error: "Reset token email mismatch." });
+    }
+
+    return res.json({
+      success: true,
+      valid: true,
+      email: record.email,
+      expiresAt: record.expiresAt
+    });
+  } catch (err) {
+    console.error("Verify reset token error:", err);
+    return res.status(500).json({ valid: false, error: "Failed to verify reset token." });
+  }
+});
+
+// 0.33. Complete Password Reset using Token Endpoint
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { token, email, newPassword } = req.body || {};
+
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: "Reset token is required." });
+    }
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 4) {
+      return res.status(400).json({ error: "New password must be at least 4 characters long." });
+    }
+
+    const cleanToken = token.trim();
+    const record = passwordResetTokens[cleanToken];
+
+    if (!record) {
+      return res.status(400).json({ error: "Invalid or unrecognized reset token. Please request a new reset link." });
+    }
+
+    if (record.used) {
+      return res.status(400).json({ error: "This password reset token has already been used. Please request a new link." });
+    }
+
+    if (new Date(record.expiresAt).getTime() < Date.now()) {
+      return res.status(400).json({ error: "This password reset token has expired. Please request a new reset link." });
+    }
+
+    const cleanEmail = (email || record.email).trim().toLowerCase();
+    let user = registeredUsers.find(u => u.email.toLowerCase() === cleanEmail);
+
+    if (!user) {
+      const defaultMatch = DEFAULT_ADMIN_USERS.find(d => d.email.toLowerCase() === cleanEmail);
+      if (defaultMatch) {
+        user = { ...defaultMatch };
+        registeredUsers.push(user);
+      }
+    }
+
+    if (!user) {
+      try {
+        const remoteUser = await fetchSingleUserFromFirestore(cleanEmail);
+        if (remoteUser && remoteUser.email) {
+          user = remoteUser;
+          registeredUsers.push(user);
+        }
+      } catch (_) {}
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: "User account not found for this reset token." });
+    }
+
+    // Update password hash
+    user.passwordHash = hashUserPassword(newPassword.trim());
+    user.lastLoginAt = new Date().toISOString();
+
+    // Mark reset token as used
+    record.used = true;
+    record.usedAt = new Date().toISOString();
+
+    saveDataStore(true);
+    saveSingleUserToFirestore(user);
+
+    logActivity(
+      'auth',
+      'success',
+      `Password Successfully Reset: ${user.fullName} (${cleanEmail})`,
+      `Account password for ${cleanEmail} was successfully reset using verified token.`,
+      {
+        actor: user.fullName,
+        actorEmail: cleanEmail,
+        actorRole: user.role,
+        ip: getClientIp(req)
+      }
+    );
+
+    console.log(`[Auth Reset] Password successfully reset for ${cleanEmail}`);
+
+    return res.json({
+      success: true,
+      message: "Your password has been successfully reset! You can now log in with your new password.",
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        surname: user.surname,
+        email: user.email,
+        cellNumber: user.cellNumber,
+        userCategory: user.userCategory,
+        organizationName: user.organizationName,
+        coverageArea: user.coverageArea,
+        role: user.role,
+        status: user.status
+      }
+    });
+  } catch (err: any) {
+    console.error("Complete password reset error:", err);
+    return res.status(500).json({ error: "Failed to reset password. Please try again." });
+  }
+});
+
+// 0.34. User IP Geolocation Endpoint (Reliable fallback for desktop browsers, iFrames, and GPS timeouts)
+app.get("/api/user-ip-location", async (req, res) => {
+  try {
+    const rawIp = (
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      (req.headers['x-real-ip'] as string) ||
+      req.socket.remoteAddress ||
+      ''
+    ).trim();
+
+    const cleanIp = rawIp.replace(/^::ffff:/, '');
+
+    // If private/local IP, return default central Gauteng (Johannesburg / Midrand) coordinates
+    if (!cleanIp || cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('192.168.') || cleanIp.startsWith('10.')) {
+      return res.json({
+        success: true,
+        ip: cleanIp || '127.0.0.1',
+        lat: -26.2041,
+        lng: 28.0473,
+        city: 'Johannesburg',
+        region: 'Gauteng',
+        country: 'South Africa',
+        accuracy: 15000,
+        source: 'default_metro'
+      });
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
+      const geoRes = await fetch(`http://ip-api.com/json/${cleanIp}?fields=status,message,country,regionName,city,lat,lon,zip`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        if (geoData && geoData.status === 'success' && typeof geoData.lat === 'number' && typeof geoData.lon === 'number') {
+          return res.json({
+            success: true,
+            ip: cleanIp,
+            lat: geoData.lat,
+            lng: geoData.lon,
+            city: geoData.city || 'South Africa',
+            region: geoData.regionName || 'Gauteng',
+            country: geoData.country || 'South Africa',
+            accuracy: 10000,
+            source: 'ip_geo'
+          });
+        }
+      }
+    } catch (e) {
+      // Fall through to default SA coordinate
+    }
+
+    return res.json({
+      success: true,
+      ip: cleanIp,
+      lat: -26.2041,
+      lng: 28.0473,
+      city: 'Johannesburg',
+      region: 'Gauteng',
+      country: 'South Africa',
+      accuracy: 25000,
+      source: 'default_fallback'
+    });
+  } catch (err: any) {
+    return res.json({
+      success: true,
+      lat: -26.2041,
+      lng: 28.0473,
+      city: 'Johannesburg',
+      region: 'Gauteng',
+      country: 'South Africa',
+      accuracy: 25000,
+      source: 'default_error_fallback'
+    });
+  }
+});
+
 // 0.35. Sync Session & User Re-hydration (Ensures client user sessions persist seamlessly across server restarts & releases)
 app.post("/api/auth/sync-session", (req, res) => {
   try {
@@ -4311,6 +5036,7 @@ app.post("/api/admin/users", (req, res) => {
     registeredUsers.push(newUser);
     saveDataStore();
     saveSingleUserToFirestore(newUser);
+    recordNewUserRegistration(newUser);
 
     sendNewUserSignupPushNotification(newUser).catch(err => {
       console.warn('[Push] Failed to dispatch admin-created user signup notification:', err);
@@ -4342,6 +5068,54 @@ app.post("/api/admin/users", (req, res) => {
     console.error("Create user error:", err);
     return res.status(500).json({ error: "Failed to create user account." });
   }
+});
+
+// GET /api/admin/users/new-registrations (Real-time polling for admin popups)
+app.get("/api/admin/users/new-registrations", (req, res) => {
+  if (!isAdminAuthorized(req)) {
+    return res.status(403).json({ error: "Admin authentication required" });
+  }
+  const since = parseInt((req.query.since as string) || "0", 10);
+  const alerts = since > 0
+    ? newUserRegistrationAlerts.filter(a => a.timestamp > since)
+    : newUserRegistrationAlerts;
+  return res.json({
+    success: true,
+    alerts: alerts.slice(0, 20),
+    total: newUserRegistrationAlerts.length
+  });
+});
+
+// POST /api/admin/users/test-registration-alert (Admin trigger to test the popup)
+app.post("/api/admin/users/test-registration-alert", (req, res) => {
+  if (!isAdminAuthorized(req)) {
+    return res.status(403).json({ error: "Admin authentication required" });
+  }
+  const testCategories: UserCategory[] = ['community', 'responder', 'law_enforcement', 'advertiser'];
+  const cat = testCategories[Math.floor(Math.random() * testCategories.length)];
+  const testUser: RegisteredUserAccount = {
+    id: `usr-test-${Date.now()}`,
+    fullName: cat === 'law_enforcement' ? 'Sgt. Kabelo' : cat === 'responder' ? 'Paramedic Sipho' : cat === 'advertiser' ? 'AutoCare Pro' : 'Thabo',
+    surname: cat === 'law_enforcement' ? 'Mthembu (SAPS)' : cat === 'responder' ? 'Ndlovu' : cat === 'advertiser' ? 'Fitment' : 'Nkosi',
+    email: `test-${Date.now().toString(36)}@example.co.za`,
+    cellNumber: '+27 82 ' + Math.floor(1000000 + Math.random() * 9000000),
+    userCategory: cat,
+    organizationName: cat === 'law_enforcement' ? 'SAPS Highway Patrol (Sandton)' : cat === 'responder' ? 'Emer-G-Med Emergency Response' : cat === 'advertiser' ? 'AutoCare Fitment Centre' : undefined,
+    coverageArea: cat === 'responder' || cat === 'law_enforcement' ? 'N1 Buccleuch to Allandale Corridor' : undefined,
+    responderType: cat === 'law_enforcement' ? 'saps_police' : 'medical_ems',
+    responderApprovalStatus: cat === 'responder' || cat === 'law_enforcement' ? 'pending' : 'none',
+    role: cat === 'advertiser' ? 'advertiser' : cat === 'responder' || cat === 'law_enforcement' ? 'patrol' : 'user',
+    passwordHash: '',
+    status: 'active',
+    registeredAt: new Date().toISOString()
+  };
+  recordNewUserRegistration(testUser);
+  saveDataStore(false);
+  return res.json({
+    success: true,
+    message: "Test registration alert generated!",
+    alert: newUserRegistrationAlerts[0]
+  });
 });
 
 // PUT /api/admin/users/:id (Update user details / role / status)
@@ -5491,6 +6265,184 @@ app.get("/api/trip-buddy/user-pass", (req, res) => {
   }
 });
 
+// ==========================================
+// WORK LIFT CLUB & COMMUTE BUDDY ENDPOINTS
+// ==========================================
+
+// GET /api/trip-buddy/lift-clubs
+app.get("/api/trip-buddy/lift-clubs", (req, res) => {
+  try {
+    const role = req.query.role as string;
+    const corridor = req.query.corridor as string;
+    const search = (req.query.search as string)?.toLowerCase();
+
+    let filtered = [...liftClubListings];
+    if (role && role !== 'all') {
+      filtered = filtered.filter(l => l.role === role);
+    }
+    if (corridor && corridor !== 'all') {
+      filtered = filtered.filter(l => l.corridor === corridor);
+    }
+    if (search) {
+      filtered = filtered.filter(l =>
+        (l.originArea || '').toLowerCase().includes(search) ||
+        (l.destinationArea || '').toLowerCase().includes(search) ||
+        (l.userName || '').toLowerCase().includes(search)
+      );
+    }
+
+    return res.json({
+      success: true,
+      count: filtered.length,
+      listings: filtered
+    });
+  } catch (err) {
+    console.error("Error fetching lift clubs:", err);
+    return res.status(500).json({ error: "Failed to fetch lift club listings." });
+  }
+});
+
+// POST /api/trip-buddy/lift-clubs
+app.post("/api/trip-buddy/lift-clubs", (req, res) => {
+  try {
+    const data = req.body;
+    if (!data.originArea || !data.destinationArea) {
+      return res.status(400).json({ error: "Pickup and destination areas are required." });
+    }
+
+    const newListing = {
+      id: data.id || `lift_${Date.now().toString(36)}`,
+      userId: data.userId || `user_${Date.now()}`,
+      userName: data.userName || 'Commuter',
+      userPhone: data.userPhone || '',
+      userEmail: data.userEmail || '',
+      userAvatar: data.userAvatar || '',
+      role: data.role || 'driver',
+      verificationStatus: data.verificationStatus || 'unverified',
+      originArea: data.originArea,
+      originCoords: data.originCoords,
+      destinationArea: data.destinationArea,
+      destinationCoords: data.destinationCoords,
+      corridor: data.corridor || 'None',
+      departureTime: data.departureTime || '06:45 AM',
+      returnTime: data.returnTime,
+      recurringDays: data.recurringDays || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      availableSeats: data.availableSeats,
+      seatsRequested: data.seatsRequested,
+      vehicleDetails: data.vehicleDetails,
+      contributionZAR: data.contributionZAR || 0,
+      coveredByMonitoringPass: true,
+      notes: data.notes || '',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    liftClubListings.unshift(newListing);
+    saveDataStore(false);
+
+    return res.json({
+      success: true,
+      listing: newListing,
+      message: "Work Lift Club listing published successfully."
+    });
+  } catch (err) {
+    console.error("Error creating lift club:", err);
+    return res.status(500).json({ error: "Failed to create lift club listing." });
+  }
+});
+
+// DELETE /api/trip-buddy/lift-clubs/:id
+app.delete("/api/trip-buddy/lift-clubs/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    const initialLen = liftClubListings.length;
+    liftClubListings = liftClubListings.filter(l => l.id !== id);
+
+    if (liftClubListings.length !== initialLen) {
+      saveDataStore(false);
+      return res.json({ success: true, message: "Listing deleted." });
+    }
+    return res.status(404).json({ error: "Listing not found." });
+  } catch (err) {
+    console.error("Error deleting lift club:", err);
+    return res.status(500).json({ error: "Failed to delete listing." });
+  }
+});
+
+// POST /api/trip-buddy/verification (Submit ID & Selfie verification)
+app.post("/api/trip-buddy/verification", (req, res) => {
+  try {
+    const data = req.body;
+    if (!data.userId) {
+      return res.status(400).json({ error: "userId is required for verification." });
+    }
+
+    const verificationRecord = {
+      userId: data.userId,
+      fullName: data.fullName || 'Verified Commuter',
+      idNumber: data.idNumber,
+      idType: data.idType || 'drivers_license',
+      selfiePhotoUrl: data.selfiePhotoUrl,
+      idDocPhotoUrl: data.idDocPhotoUrl,
+      idDocBackPhotoUrl: data.idDocBackPhotoUrl,
+      licenseNumber: data.licenseNumber,
+      vehicleMakeModel: data.vehicleMakeModel,
+      vehicleColor: data.vehicleColor,
+      vehiclePlate: data.vehiclePlate,
+      vehicleYear: data.vehicleYear,
+      status: data.status || 'verified',
+      verifiedAt: data.verifiedAt || new Date().toISOString(),
+      verifiedBadges: data.verifiedBadges || ['verified_member', 'id_verified'],
+      submittedAt: new Date().toISOString(),
+      notes: data.notes || 'Verified via LiveTraffic Trip Buddy'
+    };
+
+    const existingIdx = userIdentityVerifications.findIndex(v => v.userId === data.userId);
+    if (existingIdx >= 0) {
+      userIdentityVerifications[existingIdx] = verificationRecord;
+    } else {
+      userIdentityVerifications.push(verificationRecord);
+    }
+
+    saveDataStore(false);
+
+    return res.json({
+      success: true,
+      verification: verificationRecord,
+      message: "Identity verification successfully processed."
+    });
+  } catch (err) {
+    console.error("Verification submit error:", err);
+    return res.status(500).json({ error: "Failed to process verification." });
+  }
+});
+
+// GET /api/trip-buddy/verification/:userId
+app.get("/api/trip-buddy/verification/:userId", (req, res) => {
+  try {
+    const { userId } = req.params;
+    const record = userIdentityVerifications.find(v => v.userId === userId);
+    if (!record) {
+      return res.json({
+        success: true,
+        verification: {
+          userId,
+          status: 'unverified',
+          verifiedBadges: []
+        }
+      });
+    }
+    return res.json({
+      success: true,
+      verification: record
+    });
+  } catch (err) {
+    console.error("Verification fetch error:", err);
+    return res.status(500).json({ error: "Failed to fetch verification status." });
+  }
+});
+
 // 0.5b. Consolidated Bootstrap Endpoint (Reduces startup latency and eliminates 429 Rate Limit issues on initial load)
 app.get("/api/bootstrap", async (req, res) => {
   try {
@@ -5541,7 +6493,8 @@ app.get("/api/bootstrap", async (req, res) => {
       scannerStatus: (globalThis as any).liveITrafficScannerStatus || { isScanning: true, lastScanTime: new Date().toISOString() },
       activeUsersOnline: typeof liveFeedSessions !== 'undefined' ? (liveFeedSessions.size || 1) : 1,
       totalVisitors: visitorStats.totalVisitors || 75384,
-      advertisingOrders: advertisingOrders || []
+      advertisingOrders: advertisingOrders || [],
+      latestRegistrations: newUserRegistrationAlerts.slice(0, 10)
     });
   } catch (err: any) {
     console.error("Bootstrap API error:", err);
@@ -6280,6 +7233,20 @@ app.get("/api/reports", (req, res) => {
   });
 });
 
+// Helper to resolve South African Province from GPS coords on server
+function detectRegionFromCoords(lat: number, lng: number): string {
+  if (lat >= -26.95 && lat <= -25.10 && lng >= 27.15 && lng <= 29.10) return 'Gauteng';
+  if (lat >= -31.20 && lat <= -26.80 && lng >= 28.80 && lng <= 33.10) return 'KwaZulu-Natal';
+  if (lat >= -35.00 && lat <= -30.40 && lng >= 17.70 && lng <= 24.30) return 'Western Cape';
+  if (lat >= -34.30 && lat <= -30.00 && lng >= 22.60 && lng <= 30.20) return 'Eastern Cape';
+  if (lat >= -30.80 && lat <= -26.60 && lng >= 24.20 && lng <= 29.90) return 'Free State';
+  if (lat >= -27.60 && lat <= -23.90 && lng >= 28.40 && lng <= 32.10) return 'Mpumalanga';
+  if (lat >= -25.10 && lat <= -22.00 && lng >= 26.30 && lng <= 31.90) return 'Limpopo';
+  if (lat >= -28.20 && lat <= -24.50 && lng >= 22.50 && lng <= 28.40) return 'North West';
+  if (lat >= -33.00 && lat <= -25.40 && lng >= 16.40 && lng <= 25.60) return 'Northern Cape';
+  return 'Gauteng';
+}
+
 // 2. Submit New Incident Report / Drop Pin (Instantly live for any user without requiring admin approval)
 app.post("/api/reports", async (req, res) => {
   try {
@@ -6351,6 +7318,8 @@ app.post("/api/reports", async (req, res) => {
     const catImage = (catConfig && typeof catConfig === 'object' && catConfig.imageUrl && isActualAttachedImage(catConfig.imageUrl)) ? catConfig.imageUrl.trim() : undefined;
     const cleanImageUrl = rawCleanImageUrl || catImage;
 
+    const targetRegion = req.body.province || req.body.region || (parsedLat && parsedLng ? detectRegionFromCoords(parsedLat, parsedLng) : undefined) || 'Gauteng';
+
     const newReport: IncidentReport = {
       id: `rep-${Date.now()}`,
       type,
@@ -6361,6 +7330,8 @@ app.post("/api/reports", async (req, res) => {
       locationName: cleanLocationName,
       roadName: cleanRoadName,
       imageUrl: cleanImageUrl,
+      region: targetRegion,
+      province: targetRegion,
       status: requestedStatus,
       severity: severity || "medium",
       createdAt: new Date().toISOString(),
@@ -6468,7 +7439,8 @@ Respond strictly in JSON format matching this schema:
         lastUpdated: newReport.createdAt,
         location: feedLocation || undefined,
         roadwayName: newReport.roadName || undefined,
-        region: req.body.region || "Gauteng",
+        region: targetRegion,
+        province: targetRegion,
         category: (req.body.category || (newReport.type === 'crash' ? 'crash' : newReport.type === 'fatal_crash' ? 'crash' : newReport.type === 'spiking' ? 'spiking' : newReport.type === 'pothole' ? 'pothole' : newReport.type === 'congestion' ? 'traffic' : newReport.type === 'veld_fire' ? 'hazard' : 'hazard')) as any,
         eventSubType: (req.body.eventSubType || req.body.categoryLabel || (newReport.type === 'fatal_crash' ? 'Fatal Crash' : newReport.type === 'veld_fire' ? 'Veld Fire / Heavy Smoke' : newReport.type === 'crash' ? 'Crash Alert' : newReport.type === 'spiking' ? 'Spiking Alert' : newReport.type === 'pothole' ? 'Pothole Alert' : 'Incident Report')),
         verified: true,
@@ -6512,7 +7484,8 @@ Respond strictly in JSON format matching this schema:
         lastUpdated: newReport.createdAt,
         location: feedLocation || undefined,
         roadwayName: newReport.roadName || undefined,
-        region: req.body.region || "Gauteng",
+        region: targetRegion,
+        province: targetRegion,
         category: (req.body.category || (newReport.type === 'crash' ? 'crash' : newReport.type === 'fatal_crash' ? 'crash' : newReport.type === 'spiking' ? 'spiking' : newReport.type === 'pothole' ? 'pothole' : newReport.type === 'congestion' ? 'traffic' : newReport.type === 'veld_fire' ? 'hazard' : 'hazard')) as any,
         eventSubType: (req.body.eventSubType || req.body.categoryLabel || (newReport.type === 'fatal_crash' ? 'Fatal Crash' : newReport.type === 'veld_fire' ? 'Veld Fire / Heavy Smoke' : newReport.type === 'crash' ? 'Crash Alert' : newReport.type === 'spiking' ? 'Spiking Alert' : newReport.type === 'pothole' ? 'Pothole Alert' : 'Incident Report')),
         verified: false,
@@ -7329,7 +8302,9 @@ app.put("/api/reports/:id", (req, res) => {
     imageUrl,
     adminNotes,
     reporterName,
-    reporterPhone
+    reporterPhone,
+    region,
+    province
   } = req.body;
 
   if (title !== undefined) report.title = String(title).trim();
@@ -7345,6 +8320,14 @@ app.put("/api/reports/:id", (req, res) => {
   if (adminNotes !== undefined) report.adminNotes = adminNotes;
   if (reporterName !== undefined) report.reporterName = reporterName;
   if (reporterPhone !== undefined) report.reporterPhone = reporterPhone;
+  if (region !== undefined) {
+    report.region = region;
+    (report as any).province = region;
+  }
+  if (province !== undefined) {
+    report.region = province;
+    (report as any).province = province;
+  }
 
   // Preserve and sync counts
   if (req.body.upvotes !== undefined && typeof req.body.upvotes === 'number') {
@@ -7394,6 +8377,10 @@ app.put("/api/reports/:id", (req, res) => {
     if (type !== undefined || category !== undefined) {
       linkedFeed.category = report.type as any;
       linkedFeed.eventSubType = report.type === 'spiking' ? 'Spiking Hazard' : report.type === 'pothole' ? 'Pothole Hazard' : report.type === 'crash' ? 'Crash / Collision' : 'Live Community Update';
+    }
+    if (region !== undefined || province !== undefined) {
+      linkedFeed.region = province || region;
+      (linkedFeed as any).province = province || region;
     }
     if (typeof latitude === 'number' && !isNaN(latitude)) linkedFeed.latitude = latitude;
     if (typeof longitude === 'number' && !isNaN(longitude)) linkedFeed.longitude = longitude;
@@ -13713,6 +14700,133 @@ app.delete("/api/feedback/:id", (req, res) => {
   feedbackItems = feedbackItems.filter(f => f.id !== id);
   saveDataStore();
   res.json({ success: true });
+});
+
+// 7d. App Likes & Motorist Appreciation APIs
+app.get("/api/app-likes", (req, res) => {
+  try {
+    const userId = req.query.userId as string;
+    const clientIp = getClientIp(req);
+    const hasLiked = appLikes.some(l => 
+      (userId && l.userId === userId) || 
+      (clientIp && l.clientIp === clientIp)
+    );
+
+    return res.json({
+      success: true,
+      totalLikes: appLikes.length,
+      recentLikes: appLikes.slice(0, 15),
+      hasLiked
+    });
+  } catch (err: any) {
+    console.error("Fetch app likes error:", err);
+    return res.status(500).json({ error: "Failed to fetch app likes" });
+  }
+});
+
+app.post("/api/app-likes", async (req, res) => {
+  try {
+    const { userId, userName, userEmail, userRole, region, note } = req.body;
+    const clientIp = getClientIp(req);
+    const userAgent = (req.headers['user-agent'] as string) || '';
+
+    // Check if user already liked
+    const alreadyLiked = appLikes.find(l => 
+      (userId && l.userId && l.userId === userId) || 
+      (userEmail && l.userEmail && l.userEmail.toLowerCase() === String(userEmail).toLowerCase()) ||
+      (clientIp && l.clientIp && l.clientIp === clientIp)
+    );
+
+    if (alreadyLiked) {
+      return res.json({
+        success: true,
+        alreadyLiked: true,
+        totalLikes: appLikes.length,
+        message: "You have already liked the Live Traffic app! Thank you for your support."
+      });
+    }
+
+    const newLike = {
+      id: `like-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      userId: userId || undefined,
+      userName: userName ? String(userName).trim() : 'Anonymous Motorist',
+      userEmail: userEmail ? String(userEmail).trim().toLowerCase() : undefined,
+      userRole: userRole || 'user',
+      region: region || 'South Africa',
+      note: note ? String(note).trim() : undefined,
+      clientIp,
+      userAgent,
+      createdAt: new Date().toISOString()
+    };
+
+    appLikes.unshift(newLike);
+    saveDataStore();
+
+    // 1. Log in audit activity for admins
+    logActivity(
+      'system',
+      'info',
+      `❤️ App Liked: ${newLike.userName}`,
+      `${newLike.userName} liked the Live Traffic app from ${newLike.region}${newLike.note ? ` ("${newLike.note}")` : ''}`,
+      {
+        actor: newLike.userName,
+        actorEmail: newLike.userEmail,
+        actorRole: newLike.userRole,
+        ip: clientIp
+      }
+    );
+
+    // 2. Also register in feedback items as positive testimonial so it shows in Community Feedback
+    const feedbackItem: UserFeedbackItem = {
+      id: `fb-like-${newLike.id}`,
+      type: 'improvement',
+      title: `❤️ Motorist Appreciation: "I like this app!"`,
+      description: newLike.note 
+        ? `${newLike.userName} from ${newLike.region} liked the app and shared: "${newLike.note}"`
+        : `${newLike.userName} from ${newLike.region} liked and endorsed the Live Traffic app!`,
+      category: 'general',
+      priority: 'medium',
+      status: 'resolved',
+      userName: newLike.userName,
+      userEmail: newLike.userEmail,
+      deviceInfo: userAgent,
+      upvotes: 1,
+      createdAt: newLike.createdAt
+    };
+    feedbackItems.unshift(feedbackItem);
+    saveDataStore();
+
+    // 3. Dispatch Push Notification to all Admin Devices
+    sendAppLikePushNotification(newLike).catch(e => console.warn('[Push] Like notification error:', e));
+
+    return res.status(201).json({
+      success: true,
+      totalLikes: appLikes.length,
+      like: newLike,
+      message: "Thank you for liking Live Traffic!"
+    });
+  } catch (err: any) {
+    console.error("Create app like error:", err);
+    return res.status(500).json({ error: "Failed to record like." });
+  }
+});
+
+app.delete("/api/app-likes/:id", (req, res) => {
+  try {
+    if (!isAdminAuthorized(req)) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    const { id } = req.params;
+    const initialLen = appLikes.length;
+    appLikes = appLikes.filter(l => l.id !== id);
+    if (appLikes.length !== initialLen) {
+      saveDataStore();
+      return res.json({ success: true, message: "App like entry deleted." });
+    }
+    return res.status(404).json({ error: "App like not found." });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to delete like." });
+  }
 });
 
 // 8. Patrol Support Tiers API (Configurable by Admin)

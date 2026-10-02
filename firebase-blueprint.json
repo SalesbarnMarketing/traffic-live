@@ -181,12 +181,51 @@
         "recentActivity": { "type": "array" }
       },
       "required": ["userId", "email", "totalReputation"]
+    },
+    "LiftClubListing": {
+      "title": "LiftClubListing",
+      "description": "Work lift club and commute buddy listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "role": { "type": "string", "enum": ["driver", "passenger"] },
+        "originArea": { "type": "string" },
+        "destinationArea": { "type": "string" },
+        "corridor": { "type": "string" },
+        "departureTime": { "type": "string" },
+        "verificationStatus": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "originArea", "destinationArea", "role"]
+    },
+    "UserIdentityVerification": {
+      "title": "UserIdentityVerification",
+      "description": "Commuter identity, selfie and vehicle registration verification record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "status": { "type": "string", "enum": ["unverified", "pending_review", "verified", "rejected"] },
+        "verifiedBadges": { "type": "array" },
+        "submittedAt": { "type": "string" }
+      },
+      "required": ["userId", "status"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Registered user accounts collection"
+    },
+    "/lift_clubs/{liftId}": {
+      "schema": { "$ref": "#/entities/LiftClubListing" },
+      "description": "Work lift club commute listings"
+    },
+    "/verifications/{verificationId}": {
+      "schema": { "$ref": "#/entities/UserIdentityVerification" },
+      "description": "User identity and vehicle verification documents"
     },
     "/community_heroes/{heroId}": {
       "schema": { "$ref": "#/entities/CommunityHeroProfile" },

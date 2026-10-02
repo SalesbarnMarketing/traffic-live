@@ -19,7 +19,7 @@ export interface LocationCheckResult {
   errorMessage?: string;
   userGuidance?: string;
   timestamp: number;
-  source?: 'gps' | 'network' | 'cache';
+  source?: 'gps' | 'network' | 'cache' | 'ip_lookup' | 'default_fallback';
 }
 
 export interface CachedUserPosition {
@@ -52,6 +52,23 @@ let cachedUserPosition: CachedUserPosition | null = (() => {
 })();
 
 let lastKnownLocationCheckCache: LocationCheckResult | null = null;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (event) => {
+    try {
+      const data = event.data;
+      if (data && (data.type === 'LIVETRAFFIC_PARENT_GPS' || data.type === 'LIVETRAFFIC_GPS_RESPONSE') && typeof data.lat === 'number' && typeof data.lng === 'number') {
+        saveLastKnownUserPosition(data.lat, data.lng, data.accuracy || 20);
+      }
+    } catch (e) {}
+  });
+
+  if (window.self !== window.top) {
+    try {
+      window.parent.postMessage({ type: 'LIVETRAFFIC_REQUEST_GPS' }, '*');
+    } catch (e) {}
+  }
+}
 
 /**
  * Save the user's verified GPS position to memory, sessionStorage, and localStorage
@@ -143,7 +160,7 @@ export function getExactDeviceGps(options: {
   timeout?: number;
   maximumAge?: number;
   forceFresh?: boolean;
-} = {}): Promise<{ latitude: number; longitude: number; accuracy: number; isFallback: boolean; source: 'gps' | 'network' | 'cache' }> {
+} = {}): Promise<{ latitude: number; longitude: number; accuracy: number; isFallback: boolean; source: 'gps' | 'network' | 'cache' | 'ip_lookup' | 'default_fallback' }> {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
       const cached = getLastKnownUserPosition();
@@ -198,7 +215,7 @@ export function getExactDeviceGps(options: {
       });
     };
 
-    const checkBothFailed = () => {
+    const checkBothFailed = async () => {
       if (isResolved) return;
       if (tier1Failed && tier2Failed) {
         if (parallelNetworkTimer) clearTimeout(parallelNetworkTimer);
@@ -214,8 +231,37 @@ export function getExactDeviceGps(options: {
             source: 'cache'
           });
         }
+
+        // Tier 4: IP-based South African regional lookup
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2500);
+          const ipRes = await fetch('/api/user-ip-location', { signal: controller.signal });
+          clearTimeout(timer);
+          if (ipRes.ok) {
+            const ipData = await ipRes.json();
+            if (ipData && typeof ipData.lat === 'number' && typeof ipData.lng === 'number') {
+              isResolved = true;
+              return resolve({
+                latitude: ipData.lat,
+                longitude: ipData.lng,
+                accuracy: ipData.accuracy || 15000,
+                isFallback: true,
+                source: 'ip_lookup'
+              });
+            }
+          }
+        } catch (e) {}
+
+        // Tier 5: Safe South African Metro Fallback (Johannesburg / Central Gauteng)
         isResolved = true;
-        reject(tier2Error || tier1Error || new Error('Unable to acquire GPS location.'));
+        resolve({
+          latitude: -26.2041,
+          longitude: 28.0473,
+          accuracy: 25000,
+          isFallback: true,
+          source: 'default_fallback'
+        });
       }
     };
 

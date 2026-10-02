@@ -19,6 +19,7 @@ import {
   Square,
   Volume2,
   VolumeX,
+  BellOff,
   CreditCard,
   Check,
   ChevronLeft,
@@ -67,6 +68,8 @@ import { reverseGeocodeLocation, searchAddress, geocodeLocation, calculateTripBu
 import { tripBuddyAudio } from '../utils/tripBuddyAudio';
 import { submitPayFastForm } from '../utils/payfast';
 import { TripBuddyLiveMap } from './TripBuddyLiveMap';
+import { LiftClubWorkCommute } from './LiftClubWorkCommute';
+import { UserVerificationModal } from './UserVerificationModal';
 import { EmergencySOS } from '../types';
 
 interface TripBuddyModalProps {
@@ -88,10 +91,11 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
   initialTrackingToken,
   onSubmitSOS
 }) => {
-  // Navigation tabs: 'hud' (if trip active), 'plan', 'passes', 'viewer'
-  const [activeTab, setActiveTab] = useState<'hud' | 'plan' | 'passes' | 'viewer'>(
+  // Navigation tabs: 'hud' (if trip active), 'plan', 'liftclub', 'viewer', 'passes'
+  const [activeTab, setActiveTab] = useState<'hud' | 'plan' | 'liftclub' | 'passes' | 'viewer'>(
     activeTrip ? 'hud' : initialTrackingToken ? 'viewer' : 'plan'
   );
+  const [showVerificationModal, setShowVerificationModal] = useState<boolean>(false);
 
   // Form State for planning new trip
   const [driverName, setDriverName] = useState<string>(
@@ -167,11 +171,14 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
   // HUD Real-time states
   const [secondsUntilCheckin, setSecondsUntilCheckin] = useState<number>(1800);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
+  const [isSirenActive, setIsSirenActive] = useState<boolean>(false);
   const [customCheckinNote, setCustomCheckinNote] = useState<string>('');
   const [isCheckinLoading, setIsCheckinLoading] = useState<boolean>(false);
   const [showSOSConfirm, setShowSOSConfirm] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const [isFinishingTrip, setIsFinishingTrip] = useState<boolean>(false);
+  const hasPlayedOverdueAlertRef = useRef<boolean>(false);
+  const lastPlayedSirenAtRef = useRef<number>(0);
 
   // Promo / Voucher Code States
   const [promoCodeInput, setPromoCodeInput] = useState<string>('');
@@ -338,6 +345,13 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
     }
   }, [currentUser, driverEmail]);
 
+  // Stop all audio on unmount
+  useEffect(() => {
+    return () => {
+      tripBuddyAudio.stopAll();
+    };
+  }, []);
+
   // Safety Timer Interval for HUD
   useEffect(() => {
     if (!activeTrip || activeTrip.status !== 'active' || !activeTrip.nextCheckinDueAt) return;
@@ -351,7 +365,17 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
       if (diff === 300 || diff === 60) {
         tripBuddyAudio.playCheckinReminderChime();
       } else if (diff === 0) {
-        tripBuddyAudio.playEmergencyAlertTone();
+        const now = Date.now();
+        // Trigger emergency siren only once when entering overdue, or at most once every 3 minutes if not silenced
+        if (!hasPlayedOverdueAlertRef.current && !tripBuddyAudio.isSoundSilenced() && !tripBuddyAudio.getMuted()) {
+          hasPlayedOverdueAlertRef.current = true;
+          lastPlayedSirenAtRef.current = now;
+          setIsSirenActive(true);
+          tripBuddyAudio.playEmergencyAlertTone();
+        }
+      } else if (diff > 0) {
+        hasPlayedOverdueAlertRef.current = false;
+        setIsSirenActive(false);
       }
     };
 
@@ -715,10 +739,23 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
     }
   };
 
+  // Silence / Stop Siren Handler
+  const handleSilenceSiren = () => {
+    tripBuddyAudio.stopAll();
+    tripBuddyAudio.silence();
+    setIsSirenActive(false);
+  };
+
   // Check-in Action ("I'm Safe", "Fuel Stop", etc.)
   const handlePerformCheckin = async (status: 'safe' | 'stopped_fuel' | 'delayed', noteText?: string) => {
     if (!activeTrip) return;
     setIsCheckinLoading(true);
+
+    // Instantly stop any active siren sound and clear overdue state
+    tripBuddyAudio.stopAll();
+    tripBuddyAudio.resetSilence();
+    setIsSirenActive(false);
+    hasPlayedOverdueAlertRef.current = false;
 
     const battery = await getDeviceBatteryLevel();
     let curLat = activeTrip.currentLat;
@@ -1091,21 +1128,21 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap">
-                  TRIP BUDDY
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-white whitespace-nowrap">
+                  TRIP TRACKER
                 </h2>
-                <span className="hidden xs:inline-block text-emerald-400 text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 whitespace-nowrap">
-                  Journey Monitor
+                <span className="hidden xs:inline-block text-emerald-400 text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 whitespace-nowrap">
+                  Live GPS Radar
                 </span>
                 {activeTrip && (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    LIVE
+                    TRACKING LIVE
                   </span>
                 )}
               </div>
               <p className="text-[11px] sm:text-xs text-slate-400 truncate hidden xs:block mt-0.5">
-                Real-time route monitoring, driver safety check-ins & WhatsApp updates
+                Real-time journey location tracking, travel distance telemetry & Trip Buddy lift clubs
               </p>
             </div>
           </div>
@@ -1159,7 +1196,7 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
                 }`}
               >
                 <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span>Active HUD</span>
+                <span>Active Trip Tracker</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
               </button>
             )}
@@ -1173,7 +1210,22 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
               }`}
             >
               <Compass className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>{activeTrip ? 'Setup' : 'Plan Trip'}</span>
+              <span>{activeTrip ? 'Setup' : 'Plan Journey'}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('liftclub')}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition shrink-0 ${
+                activeTab === 'liftclub'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30'
+                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <Car className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />
+              <span>Trip Buddy: Lift Club</span>
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-400 text-slate-950 uppercase tracking-tight">
+                New
+              </span>
             </button>
 
             <button
@@ -1197,7 +1249,7 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
               }`}
             >
               <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>Passes</span>
+              <span>Passes & Wallet</span>
               {wallet.remainingTrips > 0 && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-400 text-slate-950">
                   {wallet.remainingTrips} Left
@@ -1428,6 +1480,21 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
                       : 'Tap "I AM SAFE" at any time while driving or at stops to reset timer.'}
                   </p>
                 </div>
+
+                {/* Prominent Stop / Silence Siren Button when Alert Triggered or Overdue */}
+                {(isSirenActive || secondsUntilCheckin <= 60) && (
+                  <div className="mb-3 max-w-md mx-auto">
+                    <button
+                      type="button"
+                      onClick={handleSilenceSiren}
+                      className="w-full px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 active:bg-amber-500/40 text-amber-300 border border-amber-500/50 text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer"
+                      title="Instantly stop audible alert tone"
+                    >
+                      <BellOff className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>STOP SIREN / SILENCE ALARM</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Big Driver-Safe "I AM SAFE" Button */}
                 <button
@@ -2103,13 +2170,25 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
 
                 <button
                   onClick={handleStartJourney}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-sm tracking-wide shadow-xl shadow-emerald-500/30 active:scale-95 transition flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-sm tracking-wide shadow-xl shadow-emerald-500/30 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Play className="w-4 h-4 fill-current" />
-                  START TRIP BUDDY JOURNEY
+                  START LIVE TRIP TRACKER
                 </button>
               </div>
             </div>
+          )}
+
+          {/* ==================================================== */}
+          {/* TAB: WORK LIFT CLUB & COMMUTE BUDDIES                */}
+          {/* ==================================================== */}
+          {activeTab === 'liftclub' && (
+            <LiftClubWorkCommute
+              currentUser={currentUser}
+              wallet={wallet}
+              onOpenVerificationModal={() => setShowVerificationModal(true)}
+              onOpenPassesTab={() => setActiveTab('passes')}
+            />
           )}
 
           {/* ==================================================== */}
@@ -2652,6 +2731,13 @@ export const TripBuddyModal: React.FC<TripBuddyModalProps> = ({
           )}
 
         </div>
+
+        {/* Identity & Selfie Verification Modal */}
+        <UserVerificationModal
+          isOpen={showVerificationModal}
+          onClose={() => setShowVerificationModal(false)}
+          currentUser={currentUser}
+        />
 
       </div>
     </div>

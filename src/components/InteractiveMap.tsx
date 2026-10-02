@@ -55,21 +55,32 @@ export interface CityOption {
 
 export const CITY_OPTIONS: CityOption[] = [
   // Gauteng
-  { name: 'Pretoria', region: 'Gauteng (Tshwane)', provinceKey: 'Gauteng', lat: -25.7479, lng: 28.2293, zoom: 13, popular: true },
   { name: 'Johannesburg', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.2041, lng: 28.0473, zoom: 13, popular: true },
+  { name: 'Pretoria', region: 'Gauteng (Tshwane)', provinceKey: 'Gauteng', lat: -25.7479, lng: 28.2293, zoom: 13, popular: true },
+  { name: 'Sandton', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.1076, lng: 28.0567, zoom: 13, popular: true },
   { name: 'Centurion', region: 'Gauteng', provinceKey: 'Gauteng', lat: -25.8603, lng: 28.1894, zoom: 13, popular: true },
   { name: 'Midrand', region: 'Gauteng', provinceKey: 'Gauteng', lat: -25.9964, lng: 28.1267, zoom: 13, popular: true },
-  { name: 'Sandton', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.1076, lng: 28.0567, zoom: 13 },
-  { name: 'Ekurhuleni', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.1715, lng: 28.2323, zoom: 12 },
+  { name: 'Randburg', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.0936, lng: 27.9947, zoom: 13 },
+  { name: 'Roodepoort', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.1625, lng: 27.8725, zoom: 13 },
+  { name: 'Ekurhuleni (East Rand)', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.1715, lng: 28.2323, zoom: 12, popular: true },
+  { name: 'Kempton Park (OR Tambo)', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.1000, lng: 28.2333, zoom: 13 },
+  { name: 'Benoni', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.1883, lng: 28.3206, zoom: 13 },
+  { name: 'Boksburg', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.2131, lng: 28.2575, zoom: 13 },
+  { name: 'Soweto', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.2485, lng: 27.8540, zoom: 13 },
+  { name: 'Krugersdorp', region: 'Gauteng', provinceKey: 'Gauteng', lat: -26.1030, lng: 27.7719, zoom: 13 },
   // KwaZulu-Natal
   { name: 'Durban', region: 'KwaZulu-Natal', provinceKey: 'KwaZulu-Natal', lat: -29.8587, lng: 31.0218, zoom: 12, popular: true },
+  { name: 'Umhlanga', region: 'KwaZulu-Natal', provinceKey: 'KwaZulu-Natal', lat: -29.7289, lng: 31.0844, zoom: 13, popular: true },
+  { name: 'Ballito', region: 'KwaZulu-Natal', provinceKey: 'KwaZulu-Natal', lat: -29.5392, lng: 31.2144, zoom: 13, popular: true },
   { name: 'Pietermaritzburg', region: 'KwaZulu-Natal', provinceKey: 'KwaZulu-Natal', lat: -29.6006, lng: 30.3794, zoom: 13, popular: true },
-  { name: 'Umhlanga', region: 'KwaZulu-Natal', provinceKey: 'KwaZulu-Natal', lat: -29.7289, lng: 31.0844, zoom: 13 },
-  { name: 'Ballito', region: 'KwaZulu-Natal', provinceKey: 'KwaZulu-Natal', lat: -29.5392, lng: 31.2144, zoom: 13 },
   { name: 'Pinetown', region: 'KwaZulu-Natal', provinceKey: 'KwaZulu-Natal', lat: -29.8188, lng: 30.8542, zoom: 13 },
+  { name: 'Amanzimtoti', region: 'KwaZulu-Natal', provinceKey: 'KwaZulu-Natal', lat: -30.0500, lng: 30.8833, zoom: 13 },
   // Western Cape
   { name: 'Cape Town', region: 'Western Cape', provinceKey: 'Western Cape', lat: -33.9249, lng: 18.4241, zoom: 12, popular: true },
+  { name: 'Bellville / Northern Suburbs', region: 'Western Cape', provinceKey: 'Western Cape', lat: -33.9004, lng: 18.6300, zoom: 13, popular: true },
   { name: 'Stellenbosch', region: 'Western Cape', provinceKey: 'Western Cape', lat: -33.9321, lng: 18.8602, zoom: 13 },
+  { name: 'Somerset West / Helderberg', region: 'Western Cape', provinceKey: 'Western Cape', lat: -34.0833, lng: 18.8500, zoom: 13 },
+  { name: 'Paarl', region: 'Western Cape', provinceKey: 'Western Cape', lat: -33.7342, lng: 18.9622, zoom: 13 },
   { name: 'George', region: 'Western Cape', provinceKey: 'Western Cape', lat: -33.9630, lng: 22.4617, zoom: 13 },
   // Eastern Cape
   { name: 'Gqeberha (PE)', region: 'Eastern Cape', provinceKey: 'Eastern Cape', lat: -33.9608, lng: 25.6022, zoom: 12, popular: true },
@@ -78,13 +89,34 @@ export const CITY_OPTIONS: CityOption[] = [
   { name: 'Bloemfontein', region: 'Free State', provinceKey: 'Free State', lat: -29.0852, lng: 26.1596, zoom: 12, popular: true },
   // Mpumalanga
   { name: 'Mbombela (Nelspruit)', region: 'Mpumalanga', provinceKey: 'Mpumalanga', lat: -25.4753, lng: 30.9694, zoom: 13, popular: true },
+  { name: 'eMalahleni (Witbank)', region: 'Mpumalanga', provinceKey: 'Mpumalanga', lat: -25.8728, lng: 29.2332, zoom: 13 },
   // Limpopo
   { name: 'Polokwane', region: 'Limpopo', provinceKey: 'Limpopo', lat: -23.9045, lng: 29.4688, zoom: 13, popular: true },
   // North West
   { name: 'Rustenburg', region: 'North West', provinceKey: 'North West', lat: -25.6544, lng: 27.2434, zoom: 13, popular: true },
+  { name: 'Potchefstroom', region: 'North West', provinceKey: 'North West', lat: -26.7145, lng: 27.0970, zoom: 13 },
   // Northern Cape
   { name: 'Kimberley', region: 'Northern Cape', provinceKey: 'Northern Cape', lat: -28.7282, lng: 24.7499, zoom: 13, popular: true }
 ];
+
+/**
+ * Returns the closest South African city option from a given latitude and longitude.
+ */
+export function findClosestCityOption(lat: number, lng: number): CityOption {
+  let closest = CITY_OPTIONS[0];
+  let minDistance = Infinity;
+
+  for (const city of CITY_OPTIONS) {
+    const dLat = city.lat - lat;
+    const dLng = (city.lng - lng) * Math.cos((lat * Math.PI) / 180);
+    const distSq = dLat * dLat + dLng * dLng;
+    if (distSq < minDistance) {
+      minDistance = distSq;
+      closest = city;
+    }
+  }
+  return closest;
+}
 
 interface InteractiveMapProps {
   reports: IncidentReport[];
@@ -622,7 +654,25 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   }, [confirmedPinIds, deniedPinIds, onUpvoteReport, onDenyReport, onRefreshReports, onRefreshFeed]);
 
   // City Selection, Region & 30-Min Intelligence Report state
-  const [selectedCity, setSelectedCity] = useState<CityOption | null>(CITY_OPTIONS[0]); // Default Pretoria
+  const [selectedCity, setSelectedCity] = useState<CityOption | null>(() => {
+    try {
+      const savedCityName = localStorage.getItem('livetraffic_selected_city');
+      if (savedCityName) {
+        const found = CITY_OPTIONS.find(c => c.name.toLowerCase() === savedCityName.toLowerCase());
+        if (found) return found;
+      }
+    } catch (e) {}
+    const cachedGps = getLastKnownUserPosition();
+    if (cachedGps && typeof cachedGps.latitude === 'number' && typeof cachedGps.longitude === 'number') {
+      return findClosestCityOption(cachedGps.latitude, cachedGps.longitude);
+    }
+    const savedReg = getSavedRegion();
+    if (savedReg && savedReg !== 'all') {
+      const found = CITY_OPTIONS.find(c => c.provinceKey === savedReg);
+      if (found) return found;
+    }
+    return CITY_OPTIONS[0];
+  });
   const [modalProvinceFilter, setModalProvinceFilter] = useState<SARegionId>('all');
   const [detectedMapRegion, setDetectedMapRegion] = useState<SARegionId | null>(() => getSavedDetectedRegion());
   const [isDetectingMapRegion, setIsDetectingMapRegion] = useState(false);
@@ -974,8 +1024,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   useEffect(() => {
     let isMounted = true;
     const initMapRegion = async () => {
+      const savedCityName = localStorage.getItem('livetraffic_selected_city');
       const saved = getSavedRegion();
-      if (saved && saved !== 'all') {
+      if (savedCityName) {
+        const found = CITY_OPTIONS.find(c => c.name.toLowerCase() === savedCityName.toLowerCase());
+        if (found) setSelectedCity(found);
+      } else if (saved && saved !== 'all') {
         const matchingCity = CITY_OPTIONS.find(c => c.provinceKey === saved);
         if (matchingCity) {
           setSelectedCity(matchingCity);
@@ -989,6 +1043,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           setDetectedMapRegion(detected.regionId);
           if (detected.coords) {
             saveLastKnownUserPosition(detected.coords.lat, detected.coords.lng);
+            const closest = findClosestCityOption(detected.coords.lat, detected.coords.lng);
+            setSelectedCity(closest);
+            try {
+              localStorage.setItem('livetraffic_selected_city', closest.name);
+            } catch (e) {}
+
             if (mapInstanceRef.current) {
               renderOrUpdateUserMarker(mapInstanceRef.current, detected.coords.lat, detected.coords.lng);
               if (!hasCenteredToLiveUserRef.current) {
@@ -1005,12 +1065,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 }
               }
             }
-          }
-          if (!saved || saved === 'all') {
+          } else if (!savedCityName && (!saved || saved === 'all')) {
             const match = CITY_OPTIONS.find(c => c.provinceKey === detected.regionId);
             if (match) {
               setSelectedCity(match);
-              if (mapInstanceRef.current && !hasCenteredToLiveUserRef.current && !detected.coords && !getLastKnownUserPosition()) {
+              if (mapInstanceRef.current && !hasCenteredToLiveUserRef.current && !getLastKnownUserPosition()) {
                 mapInstanceRef.current.flyTo([match.lat, match.lng], match.zoom, {
                   duration: 1.5,
                   easeLinearity: 0.25
@@ -1034,12 +1093,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setIsDetectingMapRegion(true);
     try {
       const detected = await autoDetectUserRegion();
-      if (detected && detected.regionId) {
-        setDetectedMapRegion(detected.regionId);
-        saveSelectedRegion(detected.regionId);
-        const match = CITY_OPTIONS.find(c => c.provinceKey === detected.regionId);
-        if (match) {
-          handleSelectCity(match);
+      if (detected) {
+        if (detected.coords) {
+          const closest = findClosestCityOption(detected.coords.lat, detected.coords.lng);
+          handleSelectCity(closest);
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.flyTo([detected.coords.lat, detected.coords.lng], 15, { duration: 1.2 });
+            renderOrUpdateUserMarker(mapInstanceRef.current, detected.coords.lat, detected.coords.lng);
+          }
+        } else if (detected.regionId && detected.regionId !== 'all') {
+          setDetectedMapRegion(detected.regionId);
+          saveSelectedRegion(detected.regionId);
+          const match = CITY_OPTIONS.find(c => c.provinceKey === detected.regionId);
+          if (match) {
+            handleSelectCity(match);
+          }
         }
       }
     } catch (err) {
@@ -1051,6 +1119,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   const handleSelectCity = (city: CityOption) => {
     setSelectedCity(city);
+    try {
+      localStorage.setItem('livetraffic_selected_city', city.name);
+    } catch (e) {}
     if (city.provinceKey) {
       saveSelectedRegion(city.provinceKey);
     }
@@ -1410,6 +1481,16 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
       renderOrUpdateUserMarker(map, latitude, longitude);
       saveLastKnownUserPosition(latitude, longitude, accuracy);
 
+      const closest = findClosestCityOption(latitude, longitude);
+      setSelectedCity(closest);
+      try {
+        localStorage.setItem('livetraffic_selected_city', closest.name);
+      } catch (e) {}
+      if (closest.provinceKey) {
+        setDetectedMapRegion(closest.provinceKey);
+        saveSelectedRegion(closest.provinceKey);
+      }
+
       if (shouldSetView || !hasCenteredToLiveUserRef.current) {
         hasCenteredToLiveUserRef.current = true;
         try {
@@ -1437,20 +1518,73 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
     navigator.geolocation.getCurrentPosition(
       (pos) => handlePositionSuccess(pos, false),
       (err) => {
-        console.warn('High-accuracy GPS auto-locate fallback:', err.message);
+        const isPermissionBlocked = err?.code === 1 || (err?.message || '').toLowerCase().includes('permission') || (err?.message || '').toLowerCase().includes('policy');
+        console.warn('GPS auto-locate notice:', err?.message || 'GPS fallback');
+
+        if (isPermissionBlocked) {
+          setIsLocatingUser(false);
+          const existingCache = getLastKnownUserPosition();
+          if (existingCache && mapInstanceRef.current === map) {
+            renderOrUpdateUserMarker(map, existingCache.latitude, existingCache.longitude);
+            if (isManualTrigger) {
+              map.flyTo([existingCache.latitude, existingCache.longitude], 14, { duration: 0.8 });
+              setQuickToast({ message: '📍 Centered on last verified location' });
+              setTimeout(() => setQuickToast(null), 3500);
+            }
+          } else if (isManualTrigger) {
+            setQuickToast({ message: '📍 GPS permission not enabled — tap anywhere on the map to place a pin' });
+            setTimeout(() => setQuickToast(null), 4000);
+          }
+          return;
+        }
+
         // 3. Fallback to network geolocation (Cell Tower / Wi-Fi)
         navigator.geolocation.getCurrentPosition(
           (fallbackPos) => handlePositionSuccess(fallbackPos, true),
-          (fallbackErr) => {
-            setIsLocatingUser(false);
+          async (fallbackErr) => {
             console.warn('Fallback geolocation notice:', fallbackErr.message);
+            
+            // Try IP-based location fallback before showing toast
+            try {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 2500);
+              const res = await fetch('/api/user-ip-location', { signal: controller.signal });
+              clearTimeout(timer);
+              if (res.ok) {
+                const ipData = await res.json();
+                if (ipData && typeof ipData.lat === 'number' && typeof ipData.lng === 'number' && mapInstanceRef.current === map) {
+                  setIsLocatingUser(false);
+                  renderOrUpdateUserMarker(map, ipData.lat, ipData.lng);
+                  const closest = findClosestCityOption(ipData.lat, ipData.lng);
+                  setSelectedCity(closest);
+                  try {
+                    localStorage.setItem('livetraffic_selected_city', closest.name);
+                  } catch (e) {}
+                  if (shouldSetView) {
+                    map.flyTo([ipData.lat, ipData.lng], 13, { duration: 1.2 });
+                  }
+                  if (isManualTrigger) {
+                    setQuickToast({ message: `📍 Positioned near ${ipData.city || closest.name} (via Network IP)` });
+                    setTimeout(() => setQuickToast(null), 3500);
+                  }
+                  return;
+                }
+              }
+            } catch (e) {}
+
+            setIsLocatingUser(false);
             // Ensure cached marker remains rendered even if all network geo attempts fail
             const existingCache = getLastKnownUserPosition();
             if (existingCache && mapInstanceRef.current === map) {
               renderOrUpdateUserMarker(map, existingCache.latitude, existingCache.longitude);
             }
             if (isManualTrigger) {
-              setQuickToast({ message: `⚠️ Could not lock GPS: ${fallbackErr.message || 'Please check device location.'}` });
+              const errMsg = (fallbackErr?.message || '').toLowerCase();
+              if (errMsg.includes('permissions policy') || errMsg.includes('permission') || errMsg.includes('disabled')) {
+                setQuickToast({ message: '📍 Device GPS permission disabled — tap on the map to place location pin' });
+              } else {
+                setQuickToast({ message: '📍 GPS unavailable — tap on the map to place location pin' });
+              }
               setTimeout(() => setQuickToast(null), 4000);
             }
           },
@@ -1685,6 +1819,50 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
       // 1. Trigger immediate location centering
       locateUserPosition(map, true);
 
+      // Listen for parent window GPS bridge messages & user-position updates
+      const handleGpsBridgeMessage = (event: MessageEvent) => {
+        try {
+          const data = event.data;
+          if (data && (data.type === 'LIVETRAFFIC_PARENT_GPS' || data.type === 'LIVETRAFFIC_GPS_RESPONSE') && typeof data.lat === 'number' && typeof data.lng === 'number') {
+            if (!mapInstanceRef.current || mapInstanceRef.current !== map) return;
+            const { lat, lng, accuracy } = data;
+            renderOrUpdateUserMarker(map, lat, lng);
+            saveLastKnownUserPosition(lat, lng, accuracy || 15);
+            const closest = findClosestCityOption(lat, lng);
+            setSelectedCity(closest);
+            try {
+              localStorage.setItem('livetraffic_selected_city', closest.name);
+            } catch (e) {}
+
+            if (autoRecenterRef.current || !hasCenteredToLiveUserRef.current) {
+              hasCenteredToLiveUserRef.current = true;
+              try {
+                map.panTo([lat, lng], { animate: true, duration: 0.8 });
+              } catch (e) {
+                try {
+                  map.setView([lat, lng], map.getZoom() || 15);
+                } catch (err) {}
+              }
+            }
+          }
+        } catch (e) {}
+      };
+
+      const handleUserPosEvent = (e: Event) => {
+        try {
+          const customEvt = e as CustomEvent<{ latitude: number; longitude: number; accuracy?: number }>;
+          if (customEvt.detail && typeof customEvt.detail.latitude === 'number' && typeof customEvt.detail.longitude === 'number') {
+            if (!mapInstanceRef.current || mapInstanceRef.current !== map) return;
+            renderOrUpdateUserMarker(map, customEvt.detail.latitude, customEvt.detail.longitude);
+            const closest = findClosestCityOption(customEvt.detail.latitude, customEvt.detail.longitude);
+            setSelectedCity(closest);
+          }
+        } catch (err) {}
+      };
+
+      window.addEventListener('message', handleGpsBridgeMessage);
+      window.addEventListener('livetraffic:user-position-updated', handleUserPosEvent);
+
       // 2. Setup ResizeObserver for Android container / 100dvh responsiveness
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(() => {
@@ -1726,6 +1904,8 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
       }, 1000);
 
       return () => {
+        window.removeEventListener('message', handleGpsBridgeMessage);
+        window.removeEventListener('livetraffic:user-position-updated', handleUserPosEvent);
         if (resizeObserver) {
           resizeObserver.disconnect();
         }

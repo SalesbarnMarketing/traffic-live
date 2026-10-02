@@ -3,6 +3,9 @@
 class TripBuddySoundEngine {
   private audioCtx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private activeOscillators: OscillatorNode[] = [];
+  private activeGains: GainNode[] = [];
+  private isSilenced: boolean = false;
 
   private getAudioContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -20,15 +23,52 @@ class TripBuddySoundEngine {
 
   public setMuted(muted: boolean) {
     this.isMuted = muted;
+    if (muted) {
+      this.stopAll();
+    }
   }
 
   public getMuted(): boolean {
     return this.isMuted;
   }
 
+  public silence() {
+    this.isSilenced = true;
+    this.stopAll();
+  }
+
+  public resetSilence() {
+    this.isSilenced = false;
+  }
+
+  public isSoundSilenced(): boolean {
+    return this.isSilenced;
+  }
+
+  public stopAll() {
+    try {
+      this.activeOscillators.forEach(osc => {
+        try {
+          osc.stop();
+          osc.disconnect();
+        } catch {}
+      });
+      this.activeGains.forEach(gain => {
+        try {
+          gain.gain.setValueAtTime(0, this.audioCtx?.currentTime || 0);
+          gain.disconnect();
+        } catch {}
+      });
+      this.activeOscillators = [];
+      this.activeGains = [];
+    } catch (e) {
+      console.warn('TripBuddy stopAll warning:', e);
+    }
+  }
+
   // 1. Gentle Check-in Reminder Chime (Dual tone, pleasant bell)
   public playCheckinReminderChime() {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSilenced) return;
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
@@ -45,6 +85,15 @@ class TripBuddySoundEngine {
       gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
       osc1.connect(gain1);
       gain1.connect(ctx.destination);
+
+      this.activeOscillators.push(osc1);
+      this.activeGains.push(gain1);
+
+      osc1.onended = () => {
+        this.activeOscillators = this.activeOscillators.filter(o => o !== osc1);
+        this.activeGains = this.activeGains.filter(g => g !== gain1);
+      };
+
       osc1.start(now);
       osc1.stop(now + 0.5);
 
@@ -58,6 +107,15 @@ class TripBuddySoundEngine {
       gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
       osc2.connect(gain2);
       gain2.connect(ctx.destination);
+
+      this.activeOscillators.push(osc2);
+      this.activeGains.push(gain2);
+
+      osc2.onended = () => {
+        this.activeOscillators = this.activeOscillators.filter(o => o !== osc2);
+        this.activeGains = this.activeGains.filter(g => g !== gain2);
+      };
+
       osc2.start(now + 0.15);
       osc2.stop(now + 0.7);
 
@@ -88,6 +146,15 @@ class TripBuddySoundEngine {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
       osc.connect(gain);
       gain.connect(ctx.destination);
+
+      this.activeOscillators.push(osc);
+      this.activeGains.push(gain);
+
+      osc.onended = () => {
+        this.activeOscillators = this.activeOscillators.filter(o => o !== osc);
+        this.activeGains = this.activeGains.filter(g => g !== gain);
+      };
+
       osc.start(now);
       osc.stop(now + 0.35);
 
@@ -101,7 +168,7 @@ class TripBuddySoundEngine {
 
   // 3. Urgent Alert Siren (Overdue safety check-in or SOS trigger)
   public playEmergencyAlertTone() {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isSilenced) return;
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
@@ -122,6 +189,15 @@ class TripBuddySoundEngine {
 
         osc.connect(gain);
         gain.connect(ctx.destination);
+
+        this.activeOscillators.push(osc);
+        this.activeGains.push(gain);
+
+        osc.onended = () => {
+          this.activeOscillators = this.activeOscillators.filter(o => o !== osc);
+          this.activeGains = this.activeGains.filter(g => g !== gain);
+        };
+
         osc.start(startTime);
         osc.stop(startTime + 0.25);
       }

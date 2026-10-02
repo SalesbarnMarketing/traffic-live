@@ -158,6 +158,7 @@ export const TRIP_BUDDY_PRICING_PASSES: TripBuddyPricingPass[] = [
     description: 'Ideal for regular corridor drivers, weekend commuters, and family getaways.',
     features: [
       '5 Complete Monitored Journeys (R29.80 / trip)',
+      'Work Lift Club & Commute Buddy Access Included',
       'No Expiry on Unused Trips',
       'Multi-Contact WhatsApp Broadcasting',
       'Automatic Spiking Radar Warning Integration',
@@ -170,14 +171,17 @@ export const TRIP_BUDDY_PRICING_PASSES: TripBuddyPricingPass[] = [
     title: 'Monthly Unlimited Safe Travel',
     priceZAR: 249,
     periodLabel: 'Per Month',
-    badge: 'BEST FOR FLEETS & REPS',
+    badge: 'BEST FOR WORK & FLEETS',
     tripsIncluded: 'unlimited',
-    description: 'Unlimited 24/7 journey monitoring for sales reps, courier drivers, and frequent travellers.',
+    description: 'Unlimited 24/7 journey monitoring, work lift clubs, and driver safety for daily commuters.',
     features: [
-      'Unlimited Journeys for 30 Days',
+      'Unlimited Journeys & Daily Work Lifts (30 Days)',
+      'Full Work Lift Club & Commute Matching System',
+      'Selfie & ID Verification Badging Included',
       'Cover up to 2 Registered Vehicles',
       'Instant WhatsApp Distress Dispatch',
       'Family Safety Dashboard Access',
+      'Live Approaching Radar & Departure Dispatch',
       'Complete Trip Analytics & Mileage Log',
       'Cancel or Renew anytime'
     ]
@@ -319,3 +323,66 @@ export function formatTripArrivalMessage(trip: TripBuddyPlan, locationName: stri
 
 _Thank you for monitoring with Live Traffic NPC Trip Buddy!_`;
 }
+
+// ========================================================
+// LIFT CLUB & WORK COMMUTE MESSAGE FORMATTERS & CONSTANTS
+// ========================================================
+
+export const LOCAL_STORAGE_LIFT_CLUB_KEY = 'live_traffic_lift_clubs_v1';
+export const LOCAL_STORAGE_VERIFICATION_KEY = 'live_traffic_user_verification_v1';
+
+export function formatLiftClubLeavingNowMessage(
+  driverName: string,
+  passengerName: string,
+  vehicleInfo: string,
+  pickupAddress: string,
+  destination: string,
+  etaMinutes: number,
+  trackingUrl: string
+): string {
+  return `🚗 *LIFT CLUB ALERT: DRIVER IS ON THE WAY!* 🚗
+Hi ${passengerName},
+
+👤 *Driver:* ${driverName} (Verified LiveTraffic Member)
+🚙 *Vehicle:* ${vehicleInfo}
+📍 *Pickup Location:* ${pickupAddress}
+🏁 *Destination:* ${destination}
+⏱️ *Estimated ETA:* ~${etaMinutes} mins
+
+🗺️ *Live Approaching Map & Radar:*
+${trackingUrl}
+
+_Please be ready at your pickup spot. Safety tracked via LiveTraffic NPC Trip Buddy._`;
+}
+
+export function formatLiftClubArrivedPickupMessage(
+  driverName: string,
+  passengerName: string,
+  vehicleInfo: string
+): string {
+  return `📍 *LIFT CLUB: DRIVER HAS ARRIVED OUTSIDE!* 🚗
+Hi ${passengerName},
+${driverName} is now outside your pickup location in ${vehicleInfo}.
+
+_Safe travels to work with LiveTraffic Trip Buddy!_`;
+}
+
+export function formatLiftClubRequestMessage(
+  requesterName: string,
+  requesterPhone: string,
+  role: 'driver' | 'passenger',
+  pickupArea: string,
+  destinationArea: string,
+  departureTime: string
+): string {
+  return `🤝 *LIVETRAFFIC WORK LIFT CLUB INQUIRY*
+Hi! I saw your ${role === 'driver' ? 'ride request' : 'lift offer'} on LiveTraffic Trip Buddy:
+
+👤 *Name:* ${requesterName} (${requesterPhone})
+📍 *Pickup:* ${pickupArea}
+🏢 *Destination:* ${destinationArea}
+⏰ *Time:* ${departureTime}
+
+Are you still looking for a commute buddy on this route?`;
+}
+

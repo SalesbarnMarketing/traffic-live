@@ -47,6 +47,8 @@ interface AdminPortalProps {
   currentUser?: RegisteredUser | null;
   onSwitchTab?: (tab: any) => void;
   onLogout?: () => void;
+  initialAdminTab?: 'pending' | 'approved' | 'admin_posts' | 'sos' | 'responders' | 'category_photos' | 'analytics' | 'tiers' | 'donations' | 'users' | 'hashtags' | 'activity' | 'ads' | 'feedback' | 'connections' | 'course' | 'push' | 'release_notes';
+  highlightUserEmail?: string;
 }
 
 const isPermittedAdminRole = (role?: string) => {
@@ -75,7 +77,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onEditFeedItem,
   currentUser,
   onSwitchTab,
-  onLogout
+  onLogout,
+  initialAdminTab,
+  highlightUserEmail
 }) => {
   // Session storage for admin authentication so each new session / tab requires password verification
   const [adminUser, setAdminUser] = useState<{ email: string; name: string; role?: string } | null>(() => {
@@ -157,7 +161,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'admin_posts' | 'sos' | 'responders' | 'category_photos' | 'analytics' | 'tiers' | 'donations' | 'users' | 'hashtags' | 'activity' | 'ads' | 'feedback' | 'connections' | 'course' | 'push' | 'release_notes'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'admin_posts' | 'sos' | 'responders' | 'category_photos' | 'analytics' | 'tiers' | 'donations' | 'users' | 'hashtags' | 'activity' | 'ads' | 'feedback' | 'connections' | 'course' | 'push' | 'release_notes'>(initialAdminTab || 'pending');
+
+  useEffect(() => {
+    if (initialAdminTab) {
+      setActiveTab(initialAdminTab);
+    }
+  }, [initialAdminTab]);
   const [isTabDropdownOpen, setIsTabDropdownOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [isPartnerApiModalOpen, setIsPartnerApiModalOpen] = useState(false);
@@ -3476,6 +3486,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <AdminUserManagement
           currentAdminEmail={adminUser?.email || email}
           onOpenMyPasswordChange={() => setIsChangePasswordModalOpen(true)}
+          initialSearchQuery={highlightUserEmail}
         />
       )}
 

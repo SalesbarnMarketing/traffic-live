@@ -15,10 +15,34 @@ export const TechrixFeedAdCard: React.FC<TechrixFeedAdCardProps> = ({
   onDismiss
 }) => {
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
+  const [isVisibleInCycle, setIsVisibleInCycle] = useState<boolean>(true);
   const [isAttentionShrunk, setIsAttentionShrunk] = useState<boolean>(false);
   const techrixAdId = 'ad-adv-1787747490904';
   const targetUrl = 'https://techrix365.com';
   const whatsappUrl = 'https://wa.me/27608645692?text=Hello%2C%20I%20would%20like%20to%20inquire%20about%20getting%20an%20app%20developed%20by%20Techrix365';
+
+  // Continuous visibility cycle: Visible for 2 minutes (120s), then hidden for 5 minutes (300s) as long as feed is open
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const runCycle = (showing: boolean) => {
+      setIsVisibleInCycle(showing);
+      const durationMs = showing ? 2 * 60 * 1000 : 5 * 60 * 1000;
+      timeoutId = setTimeout(() => {
+        runCycle(!showing);
+      }, durationMs);
+    };
+
+    // Starts visible for 2 minutes
+    setIsVisibleInCycle(true);
+    timeoutId = setTimeout(() => {
+      runCycle(false);
+    }, 2 * 60 * 1000);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
 
   // Attention-grabbing animation: smooth scale and neon pulse every 1 minute (60,000ms)
   useEffect(() => {
@@ -62,7 +86,7 @@ export const TechrixFeedAdCard: React.FC<TechrixFeedAdCardProps> = ({
     if (onDismiss) onDismiss();
   };
 
-  if (isDismissed) return null;
+  if (isDismissed || !isVisibleInCycle) return null;
 
   if (variant === 'minimal' || variant === 'compact') {
     return (
@@ -83,14 +107,14 @@ export const TechrixFeedAdCard: React.FC<TechrixFeedAdCardProps> = ({
             <div className="space-y-0.5 min-w-0">
               <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                 <span className="text-sm font-black text-white group-hover:text-emerald-300 transition-colors">
-                  Techrix365.com created the Live Traffic NPC app
+                  Need an app or portal like this built for your business?
                 </span>
                 <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
                   FEATURED PARTNER
                 </span>
               </div>
               <p className="text-xs text-slate-200 font-medium leading-relaxed">
-                We can build your apps, enterprise portals and websites
+                Built by Techrix365 — creators of Live Traffic NPC. Fast turnarounds, scalable code.
               </p>
             </div>
           </div>
@@ -187,10 +211,10 @@ export const TechrixFeedAdCard: React.FC<TechrixFeedAdCardProps> = ({
         {/* Text Message */}
         <div className="bg-[#050D09]/80 border border-emerald-500/20 rounded-xl p-3.5 sm:p-4 space-y-1">
           <p className="text-sm sm:text-base font-black text-white leading-snug">
-            Techrix365.com created the Live Traffic NPC app
+            Need an app or portal like this built for your business?
           </p>
           <p className="text-xs sm:text-sm font-semibold text-emerald-300 leading-relaxed">
-            We can build your apps, enterprise portals and websites
+            Built by Techrix365 — creators of Live Traffic NPC. Fast turnarounds, scalable code.
           </p>
           <div className="flex items-center space-x-2 pt-2 text-xs text-emerald-300/90 font-semibold flex-wrap gap-y-1">
             <span className="inline-flex items-center space-x-1 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md">

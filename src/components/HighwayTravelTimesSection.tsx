@@ -110,7 +110,7 @@ export const HighwayTravelTimesSection: React.FC<HighwayTravelTimesSectionProps>
   }, []);
 
   const handleCopyRouteInfo = (route: TravelTimeRoute) => {
-    const text = `🚗 [SANRAL i-Traffic Travel Time]\n🏛️ Province: ${route.region || 'Gauteng'}\n🛣️ Corridor: ${route.roadwayName} (${route.direction})\n📍 Segment: ${route.description}\n⏱️ Time: ${route.currentTime} min (${route.distance} km)\n⚡ Avg Speed: ${route.currentSpeed} km/h ${route.delayMinutes ? `(+${route.delayMinutes}m delay)` : '(Free flow)'}\n🔗 ${ITRAFFIC_TRAVELTIMES_PAGE_URL}`;
+    const text = `🚗 [Highway Travel Time]\n🏛️ Province: ${route.region || 'Gauteng'}\n🛣️ Corridor: ${route.roadwayName} (${route.direction})\n📍 Segment: ${route.description}\n⏱️ Time: ${route.currentTime} min (${route.distance} km)\n⚡ Avg Speed: ${route.currentSpeed} km/h ${route.delayMinutes ? `(+${route.delayMinutes}m delay)` : '(Free flow)'}`;
     
     try {
       navigator.clipboard.writeText(text);
@@ -195,19 +195,16 @@ export const HighwayTravelTimesSection: React.FC<HighwayTravelTimesSectionProps>
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Header Banner & SANRAL i-Traffic Link */}
+      {/* Header Banner & Live Sync */}
       <div className="bg-gradient-to-r from-[#070E1A] via-[#0C1420] to-[#070E1A] border-2 border-cyan-500/50 rounded-2xl p-4 sm:p-5 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-          <div className="space-y-1.5 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex items-center space-x-2 flex-wrap gap-y-1">
               <span className="inline-flex items-center space-x-1.5 text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-2 py-0.5 rounded-full">
                 <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
                 <span>Live Corridor Telemetry</span>
-              </span>
-              <span className="text-[10px] font-bold text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded-full border border-slate-800">
-                SANRAL i-Traffic Network
               </span>
               {lastFetched && (
                 <span className="text-[10px] text-slate-400 font-mono">
@@ -218,7 +215,7 @@ export const HighwayTravelTimesSection: React.FC<HighwayTravelTimesSectionProps>
 
             <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center space-x-2">
               <Clock className="w-5 h-5 text-cyan-400 shrink-0" />
-              <span>SANRAL i-Traffic Live Highway Travel Times</span>
+              <span>Highway Travel Times</span>
             </h2>
 
             <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
@@ -227,41 +224,17 @@ export const HighwayTravelTimesSection: React.FC<HighwayTravelTimesSectionProps>
           </div>
 
           <div className="flex items-center space-x-2.5 shrink-0">
-            {/* Optional Back to Feed Button */}
-            {onNavigateToFeed && (
-              <button
-                type="button"
-                onClick={onNavigateToFeed}
-                className="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer shadow-md active:scale-95"
-                title="Return to Live Incident Feed"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Incident Feed</span>
-              </button>
-            )}
-
             {/* Sync Button */}
             <button
               type="button"
               onClick={() => fetchTravelTimes(true)}
               disabled={isSyncing}
-              className="bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer shadow-md active:scale-95 disabled:opacity-60"
-              title="Force sync latest travel times from i-traffic.co.za"
+              className="bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer shadow-md active:scale-95 disabled:opacity-60"
+              title="Force sync latest travel times"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isSyncing ? 'animate-spin' : ''}`} />
               <span>{isSyncing ? 'Syncing...' : 'Sync Live'}</span>
             </button>
-
-            {/* Direct Official Link */}
-            <a
-              href={ITRAFFIC_TRAVELTIMES_PAGE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shadow-lg shadow-cyan-900/30 active:scale-95 group"
-            >
-              <span>i-Traffic Gauteng Page</span>
-              <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </a>
           </div>
         </div>
 
@@ -693,7 +666,7 @@ export const HighwayTravelTimesSection: React.FC<HighwayTravelTimesSectionProps>
                   </div>
 
                   {/* Card Bottom Actions */}
-                  <div className="flex items-center justify-between pt-1 text-xs">
+                  <div className="flex items-center justify-end pt-1 text-xs">
                     <button
                       type="button"
                       onClick={() => handleCopyRouteInfo(route)}
@@ -712,16 +685,6 @@ export const HighwayTravelTimesSection: React.FC<HighwayTravelTimesSectionProps>
                         </>
                       )}
                     </button>
-
-                    <a
-                      href={ITRAFFIC_TRAVELTIMES_PAGE_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center space-x-1 transition"
-                    >
-                      <span>i-Traffic Info</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
                   </div>
                 </div>
               </React.Fragment>

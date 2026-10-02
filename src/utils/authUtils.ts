@@ -1,7 +1,12 @@
 import { RegisteredUser } from '../types';
 
 export const isPermittedAdminRole = (role?: string, email?: string): boolean => {
-  if (email && email.toLowerCase().trim() === 'charlesodendaal43@gmail.com') return true;
+  if (email) {
+    const cleanEmail = email.toLowerCase().trim();
+    if (cleanEmail === 'charlesodendaal43@gmail.com' || cleanEmail === 'salesbarnmarketing101@gmail.com' || cleanEmail === 'sylvester@trafficlive.co.za' || cleanEmail === 'admin@livetraffic.co.za') {
+      return true;
+    }
+  }
   if (!role) return false;
   const lower = role.toLowerCase().trim();
   return (

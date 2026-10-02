@@ -281,7 +281,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           )}
         </div>
 
-        {/* TRIP BUDDY FEATURE HIGHLIGHT BANNER */}
+        {/* TRIP TRACKER & TRIP BUDDY FEATURE HIGHLIGHT BANNER */}
         {onOpenTripBuddy && (
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-emerald-950/60 to-slate-900 border-2 border-emerald-500/60 p-4 sm:p-5 shadow-xl shadow-emerald-950/40">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -296,17 +296,17 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center space-x-2">
                     <span className="text-xs font-black uppercase tracking-widest text-emerald-400 font-mono">
-                      SAFETY FEATURE
+                      LIVE RADAR & CARPOOL
                     </span>
                     <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
-                      {isTripActive ? '🟢 JOURNEY IN PROGRESS' : '🛡️ IN-APP LIVE MONITOR'}
+                      {isTripActive ? '🟢 LIVE TRIP TRACKING' : '🛡️ GPS & LIFT CLUB'}
                     </span>
                   </div>
                   <h3 className="text-base sm:text-lg font-black text-white mt-0.5 truncate">
-                    TRIP BUDDY: Safe Long-Distance Journey Monitoring
+                    TRIP TRACKER & TRIP BUDDY
                   </h3>
                   <p className="text-xs text-slate-300 font-medium line-clamp-1 mt-0.5">
-                    Real-time GPS tracking, periodic safety check-in timer & 1-tap WhatsApp family updates.
+                    Real-time GPS journey tracking, travel distance telemetry & safe verified work lift clubs.
                   </p>
                 </div>
               </div>
@@ -320,7 +320,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                     : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold'
                 } text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/40 transition active:scale-95 flex items-center justify-center space-x-2 shrink-0 cursor-pointer`}
               >
-                <span>{isTripActive ? 'OPEN ACTIVE TRIP HUD' : 'START TRIP BUDDY'}</span>
+                <span>{isTripActive ? 'OPEN LIVE TRIP TRACKER' : 'OPEN TRIP TRACKER'}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -369,7 +369,7 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                   TRAFFIC FEEDS
                 </h3>
                 <p className="text-xs sm:text-[13px] text-slate-300 font-medium mt-1 line-clamp-1">
-                  iTraffic live alerts
+                  Live highway alerts
                 </p>
               </div>
               <span className="bg-[#FAF4EA] group-hover:bg-white text-[#070A10] font-black text-xs sm:text-sm px-7 sm:px-9 py-2 rounded-full uppercase tracking-wider shadow-lg mt-3.5 transition border border-[#D4A237]">
@@ -467,23 +467,23 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
         </div>
 
         {/* ADDITIONAL HELPFUL SHORTCUTS */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 pt-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2.5 sm:gap-3 pt-1">
           {/* Admin Access (At top) */}
           <button
             onClick={() => onSwitchTab('admin')}
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/60 hover:border-[#D4A237] p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/60 hover:border-[#D4A237] p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-[#05080E] border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
-                <Lock className="w-4.5 h-4.5" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#05080E] border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                <Lock className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </div>
-              <div className="min-w-0">
-                <div className="font-bold text-xs sm:text-sm text-white uppercase truncate">Admin Portal</div>
-                <div className="text-[11px] sm:text-xs text-amber-300 truncate font-semibold">Moderator access</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-white uppercase leading-tight tracking-tight">Admin Portal</div>
+                <div className="text-[10px] sm:text-[11px] text-amber-300 font-semibold leading-tight mt-0.5 line-clamp-2">Moderator access</div>
               </div>
             </div>
             {pendingCount > 0 && (
-              <span className="bg-red-500 text-white text-[10px] sm:text-xs font-black px-2 py-0.5 rounded-full animate-pulse ml-1 shrink-0">
+              <span className="bg-red-500 text-white text-[10px] sm:text-xs font-black px-1.5 py-0.5 rounded-full animate-pulse ml-1 shrink-0">
                 {pendingCount}
               </span>
             )}
@@ -492,15 +492,15 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {/* Support Patrol & Volunteer Fund */}
           <button
             onClick={() => onOpenDonationModal ? onOpenDonationModal() : onSwitchTab('donations')}
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/60 hover:border-[#D4A237] p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/60 hover:border-[#D4A237] p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
-                <Heart className="w-4.5 h-4.5 fill-red-500" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                <Heart className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-red-500" />
               </div>
-              <div className="min-w-0">
-                <div className="font-bold text-xs sm:text-sm text-white uppercase truncate">Support Patrol</div>
-                <div className="text-[11px] sm:text-xs text-amber-300 truncate font-semibold">R100 Coffee & Fuel</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-white uppercase leading-tight tracking-tight">Support Patrol</div>
+                <div className="text-[10px] sm:text-[11px] text-amber-300 font-semibold leading-tight mt-0.5 line-clamp-2">R100 Coffee & Fuel</div>
               </div>
             </div>
           </button>
@@ -508,15 +508,15 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {/* Advertise on Live Traffic */}
           <button
             onClick={() => onSwitchTab('pricing')}
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/40 hover:border-[#D4A237] p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/40 hover:border-[#D4A237] p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-[#05080E] border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0">
-                <Megaphone className="w-4.5 h-4.5" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#05080E] border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0">
+                <Megaphone className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </div>
-              <div className="min-w-0">
-                <div className="font-bold text-xs sm:text-sm text-white uppercase truncate">Rate Card</div>
-                <div className="text-[11px] sm:text-xs text-slate-400 truncate">From R500 / mo</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-white uppercase leading-tight tracking-tight">Rate Card</div>
+                <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium leading-tight mt-0.5 line-clamp-2">From R500 / mo</div>
               </div>
             </div>
           </button>
@@ -524,17 +524,17 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {/* Advertiser Portal & Clicks Dashboard */}
           <button
             onClick={() => onSwitchTab('advertiser')}
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#D4A237] hover:border-amber-300 p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-[#D4A237]/15 transition group cursor-pointer"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#D4A237] hover:border-amber-300 p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-[#D4A237]/15 transition group cursor-pointer active:scale-[0.98]"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-[#FAF4EA] text-[#070A10] flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
-                <Eye className="w-4.5 h-4.5 text-[#070A10]" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#FAF4EA] text-[#070A10] flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
+                <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#070A10]" />
               </div>
-              <div className="min-w-0">
-                <div className="font-black text-xs sm:text-sm text-[#D4A237] uppercase truncate flex items-center space-x-1">
-                  <span>Ad Portal</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-[#D4A237] uppercase leading-tight tracking-tight">
+                  Ad Portal
                 </div>
-                <div className="text-[11px] sm:text-xs text-amber-200 truncate font-semibold">
+                <div className="text-[10px] sm:text-[11px] text-amber-200 font-semibold leading-tight mt-0.5 line-clamp-2">
                   Stats & Clicks
                 </div>
               </div>
@@ -550,18 +550,18 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
                 onSwitchTab('donations');
               }
             }}
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#D4A237] hover:border-amber-300 p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-[#D4A237]/20 transition group cursor-pointer animate-pulse-slow"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#D4A237] hover:border-amber-300 p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-[#D4A237]/20 transition group cursor-pointer animate-pulse-slow active:scale-[0.98]"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#D4A237] to-amber-200 text-[#070A10] flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black shadow">
-                <Award className="w-4.5 h-4.5 text-[#070A10] stroke-[2.2]" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-[#D4A237] to-amber-200 text-[#070A10] flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black shadow">
+                <Award className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#070A10] stroke-[2.2]" />
               </div>
-              <div className="min-w-0">
-                <div className="font-black text-xs sm:text-sm text-[#D4A237] uppercase truncate flex items-center space-x-1">
-                  <span>Wall of Heroes</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-[#D4A237] uppercase leading-tight tracking-tight">
+                  Wall of Heroes
                 </div>
-                <div className="text-[11px] sm:text-xs text-amber-200 truncate font-semibold">
-                  Coffee, Fuel & Fixers
+                <div className="text-[10px] sm:text-[11px] text-amber-200 font-semibold leading-tight mt-0.5 line-clamp-2">
+                  Coffee & Fuel
                 </div>
               </div>
             </div>
@@ -570,17 +570,17 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {/* SANRAL i-Traffic Highway Travel Times */}
           <button
             onClick={() => onSwitchTab('traveltimes')}
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-cyan-500/60 hover:border-cyan-400 p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-cyan-900/20 transition group cursor-pointer"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-cyan-500/60 hover:border-cyan-400 p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-cyan-900/20 transition group cursor-pointer active:scale-[0.98]"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
-                <Clock className="w-4.5 h-4.5 text-cyan-400" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
+                <Clock className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-cyan-400" />
               </div>
-              <div className="min-w-0">
-                <div className="font-black text-xs sm:text-sm text-cyan-300 uppercase truncate flex items-center space-x-1">
-                  <span>Travel Times</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-cyan-300 uppercase leading-tight tracking-tight">
+                  Travel Times
                 </div>
-                <div className="text-[11px] sm:text-xs text-slate-300 truncate font-semibold">
+                <div className="text-[10px] sm:text-[11px] text-slate-300 font-semibold leading-tight mt-0.5 line-clamp-2">
                   Gauteng Corridors
                 </div>
               </div>
@@ -590,19 +590,19 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {/* National Highway Traffic Cams (CCTV) */}
           <button
             onClick={() => onSwitchTab('trafficcams')}
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#D4A237] hover:border-amber-300 p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-[#D4A237]/20 transition group cursor-pointer"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#D4A237] hover:border-amber-300 p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-[#D4A237]/20 transition group cursor-pointer active:scale-[0.98]"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-[#D4A237]/20 text-[#D4A237] border border-[#D4A237]/50 flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
-                <Camera className="w-4.5 h-4.5 text-[#D4A237]" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#D4A237]/20 text-[#D4A237] border border-[#D4A237]/50 flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
+                <Camera className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#D4A237]" />
               </div>
-              <div className="min-w-0">
-                <div className="font-black text-xs sm:text-sm text-[#D4A237] uppercase truncate flex items-center space-x-1">
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-[#D4A237] uppercase leading-tight tracking-tight flex items-center space-x-1">
                   <span>Traffic Cams</span>
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
                 </div>
-                <div className="text-[11px] sm:text-xs text-amber-200 truncate font-semibold">
-                  Live CCTV Snapshots
+                <div className="text-[10px] sm:text-[11px] text-amber-200 font-semibold leading-tight mt-0.5 line-clamp-2">
+                  Live CCTV
                 </div>
               </div>
             </div>
@@ -612,18 +612,18 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {onOpenNotificationSettings && (
             <button
               onClick={onOpenNotificationSettings}
-              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#F25C05]/80 hover:border-orange-400 p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-orange-950/20 transition group cursor-pointer"
+              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#F25C05]/80 hover:border-orange-400 p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-lg shadow-orange-950/20 transition group cursor-pointer active:scale-[0.98]"
             >
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-[#F25C05]/20 text-orange-400 border border-[#F25C05]/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
-                  <Volume2 className="w-4.5 h-4.5 text-orange-400" />
+              <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#F25C05]/20 text-orange-400 border border-[#F25C05]/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
+                  <Volume2 className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-orange-400" />
                 </div>
-                <div className="min-w-0">
-                  <div className="font-black text-xs sm:text-sm text-orange-300 uppercase truncate flex items-center space-x-1">
-                    <span>Push & Sound</span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-black text-[11px] sm:text-xs md:text-sm text-orange-300 uppercase leading-tight tracking-tight">
+                    Push & Sound
                   </div>
-                  <div className="text-[11px] sm:text-xs text-slate-300 truncate font-semibold">
-                    Alerts, Chimes & Horns
+                  <div className="text-[10px] sm:text-[11px] text-slate-300 font-semibold leading-tight mt-0.5 line-clamp-2">
+                    Alerts & Audio
                   </div>
                 </div>
               </div>
@@ -634,15 +634,15 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {onOpenOnboarding && (
             <button
               onClick={onOpenOnboarding}
-              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/40 hover:border-[#D4A237] p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/40 hover:border-[#D4A237] p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
             >
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-[#05080E] border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0">
-                  <Award className="w-4.5 h-4.5" />
+              <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#05080E] border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0">
+                  <Award className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                 </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-xs sm:text-sm text-white uppercase truncate">Safety Tips</div>
-                  <div className="text-[11px] sm:text-xs text-slate-400 truncate">Precautions</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-black text-[11px] sm:text-xs md:text-sm text-white uppercase leading-tight tracking-tight">Safety Tips</div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium leading-tight mt-0.5 line-clamp-2">Precautions</div>
                 </div>
               </div>
             </button>
@@ -651,15 +651,15 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {/* Advanced Driving Course */}
           <button
             onClick={() => onSwitchTab('course')}
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/50 hover:border-[#D4A237] p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/50 hover:border-[#D4A237] p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-[#D4A237]/15 border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
-                <Car className="w-4.5 h-4.5" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#D4A237]/15 border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                <Car className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </div>
-              <div className="min-w-0">
-                <div className="font-bold text-xs sm:text-sm text-white uppercase truncate">Driving Course</div>
-                <div className="text-[11px] sm:text-xs text-amber-300 truncate">Max 10 / Class</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-white uppercase leading-tight tracking-tight">Driving Course</div>
+                <div className="text-[10px] sm:text-[11px] text-amber-300 font-semibold leading-tight mt-0.5 line-clamp-2">Max 10 / Class</div>
               </div>
             </div>
           </button>
@@ -668,15 +668,15 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {onOpenVoiceCommands && (
             <button
               onClick={onOpenVoiceCommands}
-              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237] hover:border-amber-300 p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237] hover:border-amber-300 p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
             >
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-[#D4A237]/20 border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
-                  <Mic className="w-4.5 h-4.5 text-[#D4A237]" />
+              <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#D4A237]/20 border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                  <Mic className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#D4A237]" />
                 </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-xs sm:text-sm text-white uppercase truncate">Voice AI</div>
-                  <div className="text-[11px] sm:text-xs text-amber-300 truncate font-semibold">Say "Hey NPC"</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-black text-[11px] sm:text-xs md:text-sm text-white uppercase leading-tight tracking-tight">Voice AI</div>
+                  <div className="text-[10px] sm:text-[11px] text-amber-300 font-semibold leading-tight mt-0.5 line-clamp-2">Say "Hey NPC"</div>
                 </div>
               </div>
             </button>
@@ -687,19 +687,19 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
             href="https://whatsapp.com/channel/0029Va91KckDzgTGXcqt3I2I"
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#25D366]/80 hover:border-[#25D366] p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+            className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#25D366]/80 hover:border-[#25D366] p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
             title="Join Official Live Traffic NPC WhatsApp Channel"
           >
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-[#25D366]/20 border border-[#25D366] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
-                <WhatsAppIcon className="w-5 h-5" />
+            <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#25D366]/20 border border-[#25D366] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                <WhatsAppIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
               </div>
-              <div className="min-w-0">
-                <div className="font-black text-xs sm:text-sm text-[#25D366] uppercase truncate flex items-center space-x-1">
-                  <span>WhatsApp Channel</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-black text-[11px] sm:text-xs md:text-sm text-[#25D366] uppercase leading-tight tracking-tight">
+                  WhatsApp
                 </div>
-                <div className="text-[11px] sm:text-xs text-emerald-300 truncate font-semibold">
-                  Live Highway Alerts
+                <div className="text-[10px] sm:text-[11px] text-emerald-300 font-semibold leading-tight mt-0.5 line-clamp-2">
+                  Live Channel
                 </div>
               </div>
             </div>
@@ -709,15 +709,15 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {onOpenGettingStarted && (
             <button
               onClick={onOpenGettingStarted}
-              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#D4A237] hover:border-amber-300 p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border-2 border-[#D4A237] hover:border-amber-300 p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
             >
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-[#FAF4EA] text-[#070A10] flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
-                  <BookOpen className="w-4.5 h-4.5 text-[#070A10]" />
+              <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#FAF4EA] text-[#070A10] flex items-center justify-center shrink-0 group-hover:scale-105 transition font-black">
+                  <BookOpen className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#070A10]" />
                 </div>
-                <div className="min-w-0">
-                  <div className="font-black text-xs sm:text-sm text-[#D4A237] uppercase truncate">User Guide</div>
-                  <div className="text-[11px] sm:text-xs text-amber-200 truncate font-semibold">App Functions</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-black text-[11px] sm:text-xs md:text-sm text-[#D4A237] uppercase leading-tight tracking-tight">User Guide</div>
+                  <div className="text-[10px] sm:text-[11px] text-amber-200 font-semibold leading-tight mt-0.5 line-clamp-2">App Functions</div>
                 </div>
               </div>
             </button>
@@ -727,18 +727,18 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
           {onOpenInstallApp && (
             <button
               onClick={handleInstallButtonClick}
-              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/80 hover:border-[#D4A237] p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer"
+              className="bg-[#0A0F1A] hover:bg-[#0F1D30] border border-[#D4A237]/80 hover:border-[#D4A237] p-2.5 sm:p-3 rounded-2xl flex items-center justify-between text-left shadow-md transition group cursor-pointer active:scale-[0.98]"
             >
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-[#D4A237]/20 border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
-                  <Smartphone className="w-4.5 h-4.5" />
+              <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#D4A237]/20 border border-[#D4A237] text-[#D4A237] flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                  <Smartphone className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                 </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-xs sm:text-sm text-white uppercase truncate">
+                <div className="min-w-0 flex-1">
+                  <div className="font-black text-[11px] sm:text-xs md:text-sm text-white uppercase leading-tight tracking-tight">
                     {isInstalled ? 'App Installed' : 'Add to Screen'}
                   </div>
-                  <div className="text-[11px] sm:text-xs text-amber-300 truncate font-semibold">
-                    {isInstalled ? 'Ready on Desktop' : '1-Click Install'}
+                  <div className="text-[10px] sm:text-[11px] text-amber-300 font-semibold leading-tight mt-0.5 line-clamp-2">
+                    {isInstalled ? 'Ready' : '1-Click Install'}
                   </div>
                 </div>
               </div>

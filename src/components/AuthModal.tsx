@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RegisteredUser, UserCategory } from '../types';
-import { X, User, Mail, Lock, Phone, ShieldCheck, UserCheck, AlertCircle, AlertTriangle, Eye, EyeOff, Loader2, Building2, Globe, Sparkles, Briefcase, MapPin, Radio, Car, Activity, CheckCircle2, Shield } from 'lucide-react';
+import { X, User, Mail, Lock, Phone, ShieldCheck, UserCheck, AlertCircle, AlertTriangle, Eye, EyeOff, Loader2, Building2, Globe, Sparkles, Briefcase, MapPin, Radio, Car, Activity, CheckCircle2, Shield, PartyPopper, ArrowRight, HeartHandshake, KeyRound } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -222,6 +222,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [welcomeUser, setWelcomeUser] = useState<RegisteredUser | null>(null);
+
+  // Forgot password flow states
+  const [isForgotPasswordMode, setIsForgotPasswordMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
+  const [forgotResetLink, setForgotResetLink] = useState<string | null>(null);
+  const [forgotResetToken, setForgotResetToken] = useState<string | null>(null);
+  const [isForgotLoading, setIsForgotLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -241,9 +250,60 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setResponderType('partner_responder');
       setResponderCallsign('');
       setError(null);
+      setWelcomeUser(null);
+      setIsForgotPasswordMode(false);
+      setForgotEmail('');
+      setForgotSuccess(null);
+      setForgotResetLink(null);
+      setForgotResetToken(null);
+      setIsForgotLoading(false);
       setRenderKey(Date.now().toString());
     }
   }, [isOpen, initialMode, initialAccountType]);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setForgotSuccess(null);
+    setForgotResetLink(null);
+    setForgotResetToken(null);
+
+    const targetEmail = (forgotEmail || email).trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      setError('Please enter a valid registered email address.');
+      return;
+    }
+
+    setIsForgotLoading(true);
+
+    try {
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://trafficlive.co.za';
+      const isCustomDomain = currentOrigin.includes('trafficlive.co.za');
+      const callbackUrl = isCustomDomain ? 'https://trafficlive.co.za/app/' : `${currentOrigin}/`;
+
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: targetEmail,
+          callbackUrl
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setForgotSuccess(data.message || 'Password reset link generated.');
+        if (data.token) setForgotResetToken(data.token);
+        if (data.resetUrl) setForgotResetLink(data.resetUrl);
+      } else {
+        setError(data.error || 'Unable to find an account with this email address. Please verify your email spelling.');
+      }
+    } catch (err: any) {
+      setError('Could not connect to authentication server. Please check your network connection.');
+    } finally {
+      setIsForgotLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -593,8 +653,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
 
         setIsLoading(false);
-        onSuccess(userObj);
-        onClose();
+        setWelcomeUser(userObj);
         return;
       }
 
@@ -637,8 +696,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       localStorage.setItem('live_traffic_npc_users_vault', JSON.stringify(vault));
 
       setIsLoading(false);
-      onSuccess(newUser);
-      onClose();
+      setWelcomeUser(newUser);
     }
   };
 
@@ -646,74 +704,212 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 sm:pb-6 bg-[#070A10]/85 backdrop-blur-md overflow-hidden">
       <div className="bg-[#0A0F1A] border-2 border-[#D4A237]/70 rounded-3xl w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden relative my-auto animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#05080E] via-[#0B1524] to-[#05080E] px-6 py-4 border-b border-[#D4A237]/40 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F5D061] via-[#D4A237] to-[#8E6516] p-0.5 shadow-lg">
-              <div className="w-full h-full bg-[#05080E] rounded-full flex items-center justify-center">
-                {accountType === 'advertiser' ? (
-                  <Building2 className="w-5 h-5 text-[#D4A237]" />
-                ) : (
-                  <ShieldCheck className="w-5 h-5 text-[#D4A237]" />
-                )}
+        {welcomeUser ? (
+          /* Welcome & Thank You Celebration Screen */
+          <div className="flex flex-col h-full overflow-hidden">
+            {/* Celebration Header */}
+            <div className="bg-gradient-to-r from-[#05080E] via-[#0B1524] to-[#05080E] px-6 py-4 border-b border-[#D4A237]/40 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F5D061] via-[#D4A237] to-[#8E6516] p-0.5 shadow-lg">
+                  <div className="w-full h-full bg-[#05080E] rounded-full flex items-center justify-center">
+                    <PartyPopper className="w-5 h-5 text-[#D4A237]" />
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-wider">
+                    Registration Complete
+                  </h2>
+                  <p className="text-xs text-[#D4A237] font-bold uppercase tracking-widest">
+                    Live Traffic NPC Network
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  onSuccess(welcomeUser);
+                  onClose();
+                }}
+                className="w-8 h-8 rounded-full bg-[#05080E] hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer border border-[#D4A237]/30"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Celebration Body */}
+            <div className="p-6 sm:p-7 space-y-5 overflow-y-auto max-h-[calc(85vh-80px)] flex flex-col items-center text-center">
+              {/* Animated Icon & Badge */}
+              <div className="relative mt-2">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 p-1 shadow-2xl shadow-amber-500/30 animate-pulse">
+                  <div className="w-full h-full bg-[#05080E] rounded-full flex items-center justify-center">
+                    <ShieldCheck className="w-10 h-10 text-[#D4A237]" />
+                  </div>
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1.5 border-2 border-[#0A0F1A] shadow-md">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+              </div>
+
+              <div>
+                <div className="inline-flex items-center space-x-1.5 px-3.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black uppercase tracking-wider mb-2">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Verified Member Account Active</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-wide">
+                  Welcome, <span className="text-[#D4A237]">{welcomeUser.fullName}</span>!
+                </h3>
+                <p className="text-slate-300 text-xs sm:text-sm mt-1.5 max-w-md mx-auto leading-relaxed">
+                  Thank you for registering with Live Traffic NPC. You are now part of South Africa’s verified community safety network protecting motorists 24/7.
+                </p>
+              </div>
+
+              {/* Account Details Box */}
+              <div className="w-full bg-[#070C15] border border-slate-800/80 rounded-2xl p-4 text-left space-y-2.5 shadow-inner">
+                <div className="text-[11px] font-black uppercase text-slate-400 tracking-wider flex items-center justify-between border-b border-slate-800/80 pb-2">
+                  <span className="flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-[#D4A237]" />
+                    <span>Your Member Credentials</span>
+                  </span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1 text-[10px]">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Ready & Linked
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Full Name</span>
+                    <span className="text-white font-bold">{welcomeUser.fullName} {welcomeUser.surname || ''}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Account Category</span>
+                    <span className="text-[#D4A237] font-bold capitalize">
+                      {welcomeUser.userCategory === 'responder' ? '🚨 Traffic Responder' : 
+                       welcomeUser.userCategory === 'law_enforcement' ? '👮 Law Enforcement' : 
+                       welcomeUser.role === 'advertiser' ? '🏢 Verified Advertiser' : '🇿🇦 Community Motorist'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Registered Email</span>
+                    <span className="text-slate-200 font-mono text-[11px] truncate block">{welcomeUser.email}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Cell Number</span>
+                    <span className="text-slate-200 font-mono text-[11px]">{welcomeUser.cellNumber}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Unlocked Capabilities */}
+              <div className="w-full bg-slate-900/40 border border-[#D4A237]/20 rounded-2xl p-4 text-left space-y-2.5">
+                <div className="text-[11px] font-black uppercase text-[#D4A237] tracking-wider flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Capabilities Now Active For You</span>
+                </div>
+                <div className="space-y-2 text-xs text-slate-300">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-emerald-400 font-bold text-sm leading-none mt-0.5">✓</span>
+                    <span><strong className="text-white">1-Tap Emergency SOS:</strong> Instant GPS panic alert dispatch when you need roadside help.</span>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-emerald-400 font-bold text-sm leading-none mt-0.5">✓</span>
+                    <span><strong className="text-white">Live Spike Trap Radar:</strong> Audio & visual corridor warnings for highway spikes and road hazards.</span>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-emerald-400 font-bold text-sm leading-none mt-0.5">✓</span>
+                    <span><strong className="text-white">Verified Incident Reporting:</strong> Submit accidents, potholes, traffic jams, and road closures in real time.</span>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-emerald-400 font-bold text-sm leading-none mt-0.5">✓</span>
+                    <span><strong className="text-white">Live Trip Tracker:</strong> Share real-time location and trip progress with family and responders.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thank You Note & Button */}
+              <div className="w-full pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSuccess(welcomeUser);
+                    onClose();
+                  }}
+                  className="w-full py-3.5 px-6 bg-gradient-to-r from-[#F5D061] via-[#D4A237] to-[#B3821B] hover:from-[#f7d677] hover:to-[#c69123] text-[#070A10] font-black rounded-2xl text-sm sm:text-base transition shadow-2xl shadow-[#D4A237]/30 flex items-center justify-center space-x-2 cursor-pointer active:scale-98"
+                >
+                  <span>Explore Live Traffic Map</span>
+                  <ArrowRight className="w-5 h-5" />
+                </button>
               </div>
             </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-wider">
-                {isLoginMode 
-                  ? (accountType === 'advertiser' ? 'Advertiser & Partner Login' : 'User Login') 
-                  : (accountType === 'advertiser' ? 'Advertiser Account Registration' : 'Community Member Registration')}
-              </h2>
-              <p className="text-xs text-[#D4A237] font-bold uppercase tracking-widest">
-                Live Traffic NPC Network
-              </p>
-            </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-[#05080E] hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer border border-[#D4A237]/30"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#05080E] via-[#0B1524] to-[#05080E] px-6 py-4 border-b border-[#D4A237]/40 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#F5D061] via-[#D4A237] to-[#8E6516] p-0.5 shadow-lg">
+                  <div className="w-full h-full bg-[#05080E] rounded-full flex items-center justify-center">
+                    {accountType === 'advertiser' ? (
+                      <Building2 className="w-5 h-5 text-[#D4A237]" />
+                    ) : (
+                      <ShieldCheck className="w-5 h-5 text-[#D4A237]" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-wider">
+                    {isLoginMode 
+                      ? (accountType === 'advertiser' ? 'Advertiser & Partner Login' : 'User Login') 
+                      : (accountType === 'advertiser' ? 'Advertiser Account Registration' : 'Community Member Registration')}
+                  </h2>
+                  <p className="text-xs text-[#D4A237] font-bold uppercase tracking-widest">
+                    Live Traffic NPC Network
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-[#05080E] hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer border border-[#D4A237]/30"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        {/* Account Type Tabs (Community vs Advertiser) */}
-        <div className="bg-[#070C15] px-6 pt-3 pb-2 border-b border-slate-800 flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setAccountType('community');
-              setEmail('');
-              setPassword('');
-              setError(null);
-            }}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-              accountType === 'community'
-                ? 'bg-[#D4A237]/20 text-[#D4A237] border border-[#D4A237]/50 shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 bg-slate-900/50'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>Community Member</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAccountType('advertiser');
-              setEmail('');
-              setPassword('');
-              setError(null);
-            }}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-              accountType === 'advertiser'
-                ? 'bg-[#D4A237] text-[#070A10] font-black shadow-lg shadow-[#D4A237]/20'
-                : 'text-slate-400 hover:text-slate-200 bg-slate-900/50'
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Business / Advertiser</span>
-          </button>
-        </div>
+            {/* Account Type Tabs (Community vs Advertiser) */}
+            <div className="bg-[#070C15] px-6 pt-3 pb-2 border-b border-slate-800 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountType('community');
+                  setEmail('');
+                  setPassword('');
+                  setError(null);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+                  accountType === 'community'
+                    ? 'bg-[#D4A237]/20 text-[#D4A237] border border-[#D4A237]/50 shadow-inner'
+                    : 'text-slate-400 hover:text-slate-200 bg-slate-900/50'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Community Member</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountType('advertiser');
+                  setEmail('');
+                  setPassword('');
+                  setError(null);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+                  accountType === 'advertiser'
+                    ? 'bg-[#D4A237] text-[#070A10] font-black shadow-lg shadow-[#D4A237]/20'
+                    : 'text-slate-400 hover:text-slate-200 bg-slate-900/50'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Business / Advertiser</span>
+              </button>
+            </div>
 
         {/* Notice Requirement Banner */}
         <div className="bg-[#D4A237]/15 border-b border-[#D4A237]/30 px-6 py-2.5 flex items-start space-x-2.5 text-xs text-slate-200">
@@ -1166,6 +1362,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-[#05080E] border border-[#D4A237]/40 focus:border-[#D4A237] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition font-mono"
                 />
+                <div className="flex items-center justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setForgotSuccess(null);
+                      setForgotEmail(email);
+                      setIsForgotPasswordMode(true);
+                    }}
+                    className="text-xs text-[#D4A237] hover:text-amber-300 font-bold transition underline cursor-pointer"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -1218,6 +1428,146 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
 
         </form>
+        </>
+        )}
+
+        {/* Forgot Password Mode View */}
+        {isForgotPasswordMode && (
+          <form
+            onSubmit={handleForgotPassword}
+            className="flex flex-col flex-1 min-h-0 overflow-y-auto p-6 space-y-4"
+          >
+            <div className="text-center space-y-1.5 pt-2">
+              <div className="w-12 h-12 rounded-2xl bg-[#D4A237]/20 border border-[#D4A237]/50 flex items-center justify-center mx-auto text-[#D4A237] mb-2 shadow-lg">
+                <KeyRound className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-black text-white uppercase tracking-wider">Reset Account Password</h3>
+              <p className="text-xs text-slate-300 max-w-sm mx-auto">
+                Enter your registered email address below. We'll send a secure password reset link to access your account.
+              </p>
+            </div>
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/40 rounded-xl p-3 text-xs text-red-300 font-medium flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {forgotSuccess && (
+              <div className="bg-emerald-500/10 border-2 border-emerald-500/50 rounded-2xl p-5 text-xs text-emerald-200 space-y-4 shadow-xl animate-in fade-in duration-200 text-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto text-emerald-400 shadow-md">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <div className="space-y-1.5">
+                  <h4 className="font-black text-white text-base">Password Reset Email Sent</h4>
+                  <p className="text-slate-300 text-xs leading-relaxed max-w-sm mx-auto">
+                    We have dispatched a secure password reset link to <strong className="text-emerald-300 font-mono">{(forgotEmail || email).trim().toLowerCase()}</strong>.
+                  </p>
+                </div>
+                <div className="bg-slate-950/80 border border-emerald-500/30 rounded-xl p-3.5 text-[11px] text-slate-300 text-left space-y-1.5">
+                  <p className="font-bold text-white flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Next Steps:</span>
+                  </p>
+                  <p className="text-slate-400 leading-relaxed">
+                    1. Check your email inbox (and spam/junk folder).<br />
+                    2. Click the <strong>Reset My Password</strong> button in the email.<br />
+                    3. If you didn't receive the email, click the button below to reset immediately.
+                  </p>
+                </div>
+
+                {forgotResetToken && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetMail = (forgotEmail || email).trim().toLowerCase();
+                      onClose();
+                      window.dispatchEvent(
+                        new CustomEvent('livetraffic:open-reset-password', {
+                          detail: { token: forgotResetToken, email: targetMail }
+                        })
+                      );
+                    }}
+                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm py-3 px-4 rounded-xl uppercase tracking-wider transition shadow-xl shadow-emerald-900/30 flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+                  >
+                    <KeyRound className="w-4 h-4 text-white shrink-0" />
+                    <span>⚡ Reset Password Now (Direct)</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPasswordMode(false);
+                    setForgotSuccess(null);
+                    setError(null);
+                  }}
+                  className="w-full bg-[#FAF4EA] hover:bg-white text-[#070A10] border-2 border-[#D4A237] font-black text-xs py-3 px-4 rounded-xl uppercase tracking-wider transition shadow-lg cursor-pointer active:scale-95"
+                >
+                  Return to Login
+                </button>
+              </div>
+            )}
+
+            {!forgotSuccess && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center space-x-1">
+                  <Mail className="w-3.5 h-3.5 text-[#D4A237]" />
+                  <span>Your Registered Email Address *</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="your.email@example.com"
+                  value={forgotEmail}
+                  onChange={(e) => {
+                    setForgotEmail(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  className="w-full bg-[#05080E] border border-[#D4A237]/40 focus:border-[#D4A237] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition font-mono"
+                />
+                <p className="text-[11px] text-slate-400">
+                  A secure password reset link will be sent directly to your email address.
+                </p>
+              </div>
+            )}
+
+            {!forgotSuccess ? (
+              <button
+                type="submit"
+                disabled={isForgotLoading || !forgotEmail.trim()}
+                className="w-full bg-[#FAF4EA] hover:bg-white text-[#070A10] border-2 border-[#D4A237] font-black text-xs sm:text-sm py-3.5 rounded-2xl uppercase tracking-wider shadow-2xl flex items-center justify-center space-x-2 transition cursor-pointer mt-3 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+              >
+                {isForgotLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-[#070A10]" />
+                    <span>Sending Reset Link...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4 text-[#070A10]" />
+                    <span>Send Password Reset Link</span>
+                  </>
+                )}
+              </button>
+            ) : null}
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPasswordMode(false);
+                  setError(null);
+                  setForgotSuccess(null);
+                }}
+                className="text-xs sm:text-sm text-slate-300 hover:text-[#D4A237] transition font-bold underline cursor-pointer"
+              >
+                ← Back to Sign In
+              </button>
+            </div>
+          </form>
+        )}
 
       </div>
     </div>

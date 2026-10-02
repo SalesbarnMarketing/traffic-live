@@ -23,6 +23,7 @@ import { DriverBulletinMode } from './components/DriverBulletinMode';
 import { ShareToXModal } from './components/ShareToXModal';
 import { ShareToWhatsAppModal } from './components/ShareToWhatsAppModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { ResetPasswordModal } from './components/ResetPasswordModal';
 import { FeedbackModal } from './components/FeedbackModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { OnboardingTourModal } from './components/OnboardingTourModal';
@@ -47,7 +48,9 @@ import { isPermittedAdminRole, getAdminSession, getAdminRequestHeaders } from '.
 import { fetchCategoryDefaultImages, setCachedCategoryDefaultImages, isActualAttachedImage } from './utils/categoryImageHelper';
 import { startContinuousGpsWatch, getExactDeviceGps, getLastKnownUserPosition } from './utils/locationChecker';
 import { EmergencySOSAlertBanner } from './components/EmergencySOSAlertBanner';
-import { playEmergencySOSAlertSound, playTrafficAlertSound } from './utils/voiceAudioFeedback';
+import { NewUserAlertModal } from './components/NewUserAlertModal';
+import { NewUserRegistrationAlert } from './types';
+import { playEmergencySOSAlertSound, playTrafficAlertSound, playAlertChimeSound } from './utils/voiceAudioFeedback';
 import { showLocalEmergencyNotification, subscribeUserToPushNotifications } from './utils/pushNotification';
 import { PushNotificationSettingsModal } from './components/PushNotificationSettingsModal';
 import { getAllPostRelatedIds, isPostDeleted, registerDeletedPostId, isGloballyDeleted } from './utils/idUtils';
@@ -58,6 +61,9 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isDriverModeOpen, setIsDriverModeOpen] = useState<boolean>(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState<boolean>(false);
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState<boolean>(false);
+  const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(null);
+  const [resetPasswordEmail, setResetPasswordEmail] = useState<string | null>(null);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState<boolean>(false);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
@@ -67,6 +73,14 @@ export default function App() {
   const [activeIncomingSos, setActiveIncomingSos] = useState<EmergencySOS | null>(null);
   const knownSosIdsRef = React.useRef<Set<string>>(new Set());
   const isInitialSosFetchRef = React.useRef<boolean>(true);
+
+  // Real-time New User Registration Alerts for Administrators
+  const [activeNewUserAlert, setActiveNewUserAlert] = useState<NewUserRegistrationAlert | null>(null);
+  const [newUserAlertQueue, setNewUserAlertQueue] = useState<NewUserRegistrationAlert[]>([]);
+  const [adminInitialTab, setAdminInitialTab] = useState<'pending' | 'approved' | 'admin_posts' | 'sos' | 'responders' | 'category_photos' | 'analytics' | 'tiers' | 'donations' | 'users' | 'hashtags' | 'activity' | 'ads' | 'feedback' | 'connections' | 'course' | 'push' | 'release_notes' | undefined>(undefined);
+  const [adminHighlightUserEmail, setAdminHighlightUserEmail] = useState<string | undefined>(undefined);
+  const knownAlertIdsRef = React.useRef<Set<string>>(new Set());
+  const isInitialUserAlertFetchRef = React.useRef<boolean>(true);
   const [isWallOfHeroesOpen, setIsWallOfHeroesOpen] = useState<boolean>(false);
   const [isCommunityHeroesOpen, setIsCommunityHeroesOpen] = useState<boolean>(false);
   const [isGettingStartedOpen, setIsGettingStartedOpen] = useState<boolean>(false);
@@ -83,7 +97,7 @@ export default function App() {
     }
   });
 
-  // Check URL query parameters for direct family tracking links or camera deep-links
+  // Check URL query parameters for direct family tracking links, camera deep-links, or password reset tokens
   useEffect(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -91,6 +105,32 @@ export default function App() {
       if (trackToken) {
         setInitialTrackingToken(trackToken);
         setIsTripBuddyOpen(true);
+      }
+
+      // Password Reset links from https://trafficlive.co.za/app/?action=reset-password&token=...
+      const resetToken = urlParams.get('token') || urlParams.get('resetToken') || urlParams.get('key');
+      const resetEmail = urlParams.get('email') || urlParams.get('user');
+      const actionParam = urlParams.get('action');
+
+      if (resetToken || actionParam === 'reset-password' || actionParam === 'reset_password') {
+        if (resetToken) setResetPasswordToken(resetToken);
+        if (resetEmail) setResetPasswordEmail(resetEmail);
+        setIsResetPasswordOpen(true);
+      }
+
+      // Also check hash fragment (e.g. #/reset-password?token=...)
+      if (typeof window !== 'undefined' && window.location.hash && window.location.hash.toLowerCase().includes('reset')) {
+        try {
+          const hashStr = window.location.hash.replace(/^#\/?/, '');
+          const hashParams = new URLSearchParams(hashStr.includes('?') ? hashStr.split('?')[1] : hashStr);
+          const hashToken = hashParams.get('token') || hashParams.get('resetToken');
+          const hashEmail = hashParams.get('email');
+          if (hashToken) {
+            setResetPasswordToken(hashToken);
+            if (hashEmail) setResetPasswordEmail(hashEmail);
+            setIsResetPasswordOpen(true);
+          }
+        } catch (e) {}
       }
 
       const tabParam = urlParams.get('tab');
@@ -104,6 +144,17 @@ export default function App() {
     } catch (e) {
       // ignore
     }
+
+    const handleOpenReset = (event: any) => {
+      if (event.detail?.token) setResetPasswordToken(event.detail.token);
+      if (event.detail?.email) setResetPasswordEmail(event.detail.email);
+      setIsResetPasswordOpen(true);
+    };
+
+    window.addEventListener('livetraffic:open-reset-password', handleOpenReset);
+    return () => {
+      window.removeEventListener('livetraffic:open-reset-password', handleOpenReset);
+    };
   }, []);
 
   // Sync active trip state to localStorage
@@ -541,8 +592,77 @@ export default function App() {
 
   const isUserAdmin = Boolean(
     getAdminSession(currentUser) ||
-    (currentUser && isPermittedAdminRole(currentUser.role))
+    (currentUser && isPermittedAdminRole(currentUser.role, currentUser.email))
   );
+
+  const processNewRegistrations = (alerts: NewUserRegistrationAlert[]) => {
+    if (!alerts || alerts.length === 0) return;
+    if (isInitialUserAlertFetchRef.current) {
+      alerts.forEach(a => knownAlertIdsRef.current.add(a.id));
+      isInitialUserAlertFetchRef.current = false;
+      return;
+    }
+    const freshAlerts = alerts.filter(a => !knownAlertIdsRef.current.has(a.id));
+    if (freshAlerts.length > 0) {
+      freshAlerts.forEach(a => knownAlertIdsRef.current.add(a.id));
+      playAlertChimeSound();
+      setActiveNewUserAlert(freshAlerts[0]);
+      if (freshAlerts.length > 1) {
+        setNewUserAlertQueue(prev => [...prev, ...freshAlerts.slice(1)]);
+      }
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(`👤 New User: ${freshAlerts[0].fullName}`, {
+            body: `${freshAlerts[0].email} (${freshAlerts[0].userCategory || 'motorist'}) registered on Live Traffic NPC.`,
+            icon: '/icon.svg',
+            tag: freshAlerts[0].id
+          });
+        } catch (_) {}
+      }
+    }
+  };
+
+  const checkNewUserRegistrations = async () => {
+    if (!isUserAdmin) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
+    try {
+      const headers = getAdminRequestHeaders(currentUser);
+      const res = await fetch('/api/admin/users/new-registrations', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.alerts)) {
+          processNewRegistrations(data.alerts);
+        }
+      }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (!isUserAdmin) return;
+    checkNewUserRegistrations();
+    const interval = setInterval(() => {
+      checkNewUserRegistrations();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isUserAdmin]);
+
+  const handleDismissNewUserAlert = () => {
+    if (newUserAlertQueue.length > 0) {
+      const [next, ...rest] = newUserAlertQueue;
+      setActiveNewUserAlert(next);
+      setNewUserAlertQueue(rest);
+    } else {
+      setActiveNewUserAlert(null);
+    }
+  };
+
+  const handleViewInUserManagement = (alert: NewUserRegistrationAlert) => {
+    setActiveNewUserAlert(null);
+    setNewUserAlertQueue([]);
+    setAdminInitialTab('users');
+    setAdminHighlightUserEmail(alert.email);
+    setActiveTab('admin');
+  };
 
   useEffect(() => {
     const handleOpenReleaseNotesEvent = () => {
@@ -603,9 +723,12 @@ export default function App() {
       }
 
       const cleanImageUrl = isActualAttachedImage(reportData.imageUrl) ? reportData.imageUrl : undefined;
+      const reportProvince = reportData.province || reportData.region || 'Gauteng';
 
       const payload = {
         ...reportData,
+        province: reportProvince,
+        region: reportProvince,
         imageUrl: cleanImageUrl,
         isAdmin: isPostAdmin,
         status: 'approved',
@@ -632,6 +755,8 @@ export default function App() {
         longitude: reportData.longitude,
         locationName: reportData.locationName || 'Reported Location',
         roadName: reportData.roadName || 'Active Road Corridor',
+        province: reportProvince,
+        region: reportProvince,
         imageUrl: cleanImageUrl,
         status: 'approved',
         severity: reportData.severity || 'medium',
@@ -1311,6 +1436,24 @@ export default function App() {
           }}
         />
 
+        {/* Reset Password Modal (Direct Deep-link / Email Token) */}
+        <ResetPasswordModal
+          isOpen={isResetPasswordOpen}
+          token={resetPasswordToken || undefined}
+          initialEmail={resetPasswordEmail || undefined}
+          onClose={() => {
+            setIsResetPasswordOpen(false);
+            setResetPasswordToken(null);
+            setResetPasswordEmail(null);
+          }}
+          onSuccess={(user) => {
+            setCurrentUser(user);
+            setIsResetPasswordOpen(false);
+            setResetPasswordToken(null);
+            setResetPasswordEmail(null);
+          }}
+        />
+
         {/* Real-time App Version Notification & Reload Prompt */}
         <VersionNotification currentVersion={APP_VERSION} />
       </div>
@@ -1319,7 +1462,7 @@ export default function App() {
 
   // Render the full application when the user is authenticated.
   return (
-    <div className="fixed inset-0 h-full h-[100dvh] w-full bg-[#070A10] text-slate-100 font-sans flex flex-col antialiased overflow-hidden text-[15px]">
+    <div className="fixed inset-0 h-full w-full max-h-full bg-[#070A10] text-slate-100 font-sans flex flex-col antialiased overflow-hidden text-[15px]">
       {/* Real-Time Emergency SOS Broadcast Alert Banner */}
       <EmergencySOSAlertBanner
         sos={activeIncomingSos}
@@ -1329,6 +1472,16 @@ export default function App() {
           setActiveIncomingSos(null);
         }}
       />
+
+      {/* Real-Time New User Registration Admin Popup */}
+      {isUserAdmin && activeNewUserAlert && (
+        <NewUserAlertModal
+          alert={activeNewUserAlert}
+          queueCount={newUserAlertQueue.length + 1}
+          onDismiss={handleDismissNewUserAlert}
+          onViewInUserManagement={handleViewInUserManagement}
+        />
+      )}
 
       {/* Navigation Header Bar */}
       <Navbar
@@ -1454,6 +1607,7 @@ export default function App() {
             onClearFocusedAlert={() => setFocusedAlertQuery(null)}
             onNavigateToAdvertiser={() => setActiveTab('advertiser')}
             onSwitchTab={(tab) => setActiveTab(tab)}
+            onOpenFeedback={() => setIsFeedbackModalOpen(true)}
           />
         )}
 
@@ -1506,6 +1660,8 @@ export default function App() {
             currentUser={currentUser}
             onSwitchTab={(tab) => setActiveTab(tab)}
             onLogout={handleLogout}
+            initialAdminTab={adminInitialTab}
+            highlightUserEmail={adminHighlightUserEmail}
           />
         )}
 
@@ -1705,6 +1861,29 @@ export default function App() {
         userName={currentUser ? `${currentUser.fullName} ${currentUser.surname}` : ''}
       />
 
+      {/* Forgotten Password Reset Modal */}
+      <ResetPasswordModal
+        isOpen={isResetPasswordOpen}
+        onClose={() => {
+          setIsResetPasswordOpen(false);
+          setResetPasswordToken(null);
+          setResetPasswordEmail(null);
+        }}
+        token={resetPasswordToken || ''}
+        initialEmail={resetPasswordEmail || ''}
+        onSuccess={(updatedUser) => {
+          setIsResetPasswordOpen(false);
+          setResetPasswordToken(null);
+          setResetPasswordEmail(null);
+          if (updatedUser) {
+            setCurrentUser(updatedUser);
+            try {
+              localStorage.setItem('live_traffic_npc_user', JSON.stringify(updatedUser));
+            } catch (e) {}
+          }
+        }}
+      />
+
       {/* Community Suggestions & Feedback Modal */}
       <FeedbackModal
         isOpen={isFeedbackModalOpen}
@@ -1810,14 +1989,12 @@ export default function App() {
         currentUser={currentUser}
       />
 
-      {/* What's New & Release Notes Modal - Restricted to Authenticated Admins */}
-      {isUserAdmin && (
-        <ReleaseNotesModal
-          isOpen={isReleaseNotesOpen}
-          onClose={() => setIsReleaseNotesOpen(false)}
-          onOpenFeedback={() => setIsFeedbackModalOpen(true)}
-        />
-      )}
+      {/* What's New & Release Notes Modal */}
+      <ReleaseNotesModal
+        isOpen={isReleaseNotesOpen}
+        onClose={() => setIsReleaseNotesOpen(false)}
+        onOpenFeedback={() => setIsFeedbackModalOpen(true)}
+      />
 
       {/* Official Welcome Screen / Splash Badge */}
       {isWelcomeModalOpen && (
@@ -1843,7 +2020,11 @@ export default function App() {
       )}
 
       {/* Real-time App Version Notification & Reload Prompt (with Enforced Auto-Reload for Anonymous Connections) */}
-      <VersionNotification currentVersion={APP_VERSION} currentUser={currentUser} />
+      <VersionNotification 
+        currentVersion={APP_VERSION} 
+        currentUser={currentUser} 
+        onOpenReleaseNotes={() => setIsReleaseNotesOpen(true)}
+      />
     </div>
   );
 }

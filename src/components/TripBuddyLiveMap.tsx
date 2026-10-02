@@ -481,28 +481,44 @@ export const TripBuddyLiveMap: React.FC<TripBuddyLiveMapProps> = ({
     Math.max(2, Math.round(((trip.distanceTravelledKm || 0) / (trip.estimatedDistanceKm || 100)) * 100))
   );
 
+  const totalDistKm = trip.estimatedDistanceKm || 100;
+  const travelledDistKm = trip.distanceTravelledKm || 0;
+  const remainingDistKm = Math.max(0, Math.round((totalDistKm - travelledDistKm) * 10) / 10);
+  
+  // Estimate remaining travel time assuming average speed of ~85 km/h if moving, or 0 if arrived
+  const avgSpeed = Math.max(60, trip.currentSpeedKmh || 85);
+  const remainingMinsTotal = Math.round((remainingDistKm / avgSpeed) * 60);
+  const remHours = Math.floor(remainingMinsTotal / 60);
+  const remMins = remainingMinsTotal % 60;
+  const etaTimestamp = new Date(Date.now() + remainingMinsTotal * 60000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
   return (
-    <div className="flex flex-col w-full bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl text-slate-100">
+    <div className="flex flex-col w-full bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl text-slate-100 space-y-0">
       
       {/* Top Corridor Banner with Trip Header & Live Metrics */}
       <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
+          <div className="w-9 h-9 rounded-xl bg-[#D4A237]/20 border border-[#D4A237]/40 flex items-center justify-center text-[#D4A237] shrink-0 shadow-inner">
             <Navigation className="w-5 h-5 animate-pulse" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h4 className="text-sm sm:text-base font-black text-white truncate">{trip.departure} ➔ {trip.destination}</h4>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm sm:text-base font-black text-white truncate">
+                {trip.departure} ➔ {trip.destination}
+              </h4>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                 trip.status === 'emergency'
                   ? 'bg-rose-500/30 text-rose-300 border border-rose-500/50 animate-pulse'
                   : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
               }`}>
-                {trip.status === 'emergency' ? '🚨 EMERGENCY' : 'LIVE MONITORING'}
+                {trip.status === 'emergency' ? '🚨 EMERGENCY' : 'LIVE TRIP TRACKER'}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 truncate mt-0.5">
-              Driver: <span className="text-slate-200 font-semibold">{trip.driverName}</span> • Via {trip.routeVia || 'Direct Highway Corridor'}
+              Traveler: <span className="text-slate-200 font-semibold">{trip.driverName}</span> • Via {trip.routeVia || 'Highway Corridor'}
             </p>
           </div>
         </div>
@@ -526,13 +542,123 @@ export const TripBuddyLiveMap: React.FC<TripBuddyLiveMapProps> = ({
                 setFollowDriver(true);
               }
             }}
-            title="Center Camera on Driver"
-            className={`p-1.5 rounded-lg border transition ${
+            title="Center Camera on Traveler"
+            className={`p-1.5 rounded-lg border transition cursor-pointer ${
               followDriver ? 'bg-cyan-600/30 border-cyan-500 text-cyan-300' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
             }`}
           >
             <Compass className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+
+      {/* 2. REAL-TIME LOCATION & TRAVEL DISTANCE TELEMETRY BAR */}
+      <div className="bg-slate-900/95 border-b border-slate-800 p-3 sm:p-4 space-y-2.5">
+        {/* Where is the person right now? */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-black/60 border border-slate-800 rounded-xl p-2.5 text-xs">
+          <div className="flex items-start space-x-2.5 min-w-0">
+            <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/60 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider block">
+                Live Current Location At This Moment:
+              </span>
+              <p className="text-white font-bold text-xs sm:text-sm truncate">
+                {trip.currentLocationName || `En route (${currentLat.toFixed(4)}, ${currentLng.toFixed(4)})`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+            <span className="font-mono text-[10px] bg-slate-900 text-slate-300 px-2 py-1 rounded border border-slate-700">
+              {currentLat.toFixed(4)}°, {currentLng.toFixed(4)}°
+            </span>
+            <a
+              href={`https://maps.google.com/?q=${currentLat},${currentLng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center space-x-1 font-semibold underline"
+            >
+              <ExternalLink className="w-3 h-3" />
+              <span>Google Maps Pin</span>
+            </a>
+          </div>
+        </div>
+
+        {/* How far is the person traveling? 4-Stat Live Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          {/* 1. Distance Traveled */}
+          <div className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl">
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Traveled So Far</span>
+            <div className="flex items-baseline space-x-1.5 mt-0.5">
+              <span className="text-base sm:text-lg font-black font-mono text-cyan-400">
+                {travelledDistKm}
+              </span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase">KM</span>
+            </div>
+            <span className="text-[10px] text-emerald-400 font-semibold">{progressPercent}% Completed</span>
+          </div>
+
+          {/* 2. Remaining Distance */}
+          <div className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl">
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Remaining Distance</span>
+            <div className="flex items-baseline space-x-1.5 mt-0.5">
+              <span className="text-base sm:text-lg font-black font-mono text-amber-400">
+                {remainingDistKm}
+              </span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase">KM</span>
+            </div>
+            <span className="text-[10px] text-slate-400">to destination</span>
+          </div>
+
+          {/* 3. Total Trip Distance */}
+          <div className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl">
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Route</span>
+            <div className="flex items-baseline space-x-1.5 mt-0.5">
+              <span className="text-base sm:text-lg font-black font-mono text-white">
+                {totalDistKm}
+              </span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase">KM</span>
+            </div>
+            <span className="text-[10px] text-slate-400 truncate block">{trip.routeVia || 'Corridor'}</span>
+          </div>
+
+          {/* 4. Estimated Time / ETA */}
+          <div className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl">
+            <span className="text-[10px] text-slate-400 uppercase font-bold block">Estimated Arrival</span>
+            <div className="flex items-baseline space-x-1 mt-0.5">
+              <span className="text-base sm:text-lg font-black font-mono text-emerald-400">
+                {remainingDistKm <= 0 ? 'ARRIVED' : etaTimestamp}
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400">
+              {remainingDistKm <= 0 ? 'Trip Completed' : `~${remHours}h ${remMins}m drive`}
+            </span>
+          </div>
+        </div>
+
+        {/* Visual Progress Bar */}
+        <div className="space-y-1 pt-0.5">
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+            <span className="truncate max-w-[130px] flex items-center space-x-1">
+              <MapPin className="w-3 h-3 text-emerald-400 inline" />
+              <span>{trip.departure}</span>
+            </span>
+            <span className="text-[#D4A237] font-mono font-bold">
+              {travelledDistKm} of {totalDistKm} km ({progressPercent}%)
+            </span>
+            <span className="truncate max-w-[130px] text-right flex items-center justify-end space-x-1">
+              <span>{trip.destination}</span>
+              <MapPin className="w-3 h-3 text-red-400 inline" />
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-slate-950 border border-slate-800 overflow-hidden relative">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-[#D4A237] transition-all duration-500 rounded-full"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         </div>
       </div>
 

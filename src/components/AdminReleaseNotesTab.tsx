@@ -3,7 +3,8 @@ import {
   Sparkles, Clock, ListFilter, ShieldCheck, Layers, 
   ExternalLink, CheckCircle2, ChevronRight, RefreshCw, 
   Database, AlertTriangle, Eye, ShieldAlert, Cpu, 
-  Activity, ArrowUpRight, Lock, Bell, Volume2, Smartphone
+  Activity, ArrowUpRight, Lock, Bell, Volume2, Smartphone,
+  HeartHandshake
 } from 'lucide-react';
 import { APP_VERSION, BUILD_NUMBER, getFullVersionString } from '../version';
 
@@ -42,6 +43,117 @@ export const AdminReleaseNotesTab: React.FC<AdminReleaseNotesTabProps> = ({
   };
 
   const changes = [
+    {
+      id: 'smtp_integration',
+      category: 'system',
+      badge: 'SMTP Email Delivery',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+      icon: ShieldCheck,
+      iconColor: 'text-emerald-400 bg-emerald-950/40 border-emerald-500/30',
+      title: 'Dedicated SMTP Outbound Mail Transport (techrix365.com)',
+      impact: 'Transactional Authentication & Delivery',
+      summary: 'Connected production SMTP server (mail.techrix365.com:465 SSL/TLS) for branded password reset emails, account recovery, and test verification.',
+      technicalDetails: [
+        'Configured nodemailer transport using SSL/TLS port 465 with info@techrix365.com authentication.',
+        'Created /api/auth/test-smtp diagnostic endpoint for admin connectivity verification.',
+        'HTML password reset template styled with Live Traffic NPC gold accents and secure token generation.'
+      ]
+    },
+    {
+      id: 'feed_action_bar_cleanup',
+      category: 'feed',
+      badge: 'Feed UX Polish',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      icon: Layers,
+      iconColor: 'text-cyan-400 bg-cyan-950/40 border-cyan-500/30',
+      title: 'Feed Action Bar Streamlining & Techrix365 Copy Refresh',
+      impact: 'Visual Clarity & Conversion',
+      summary: 'Removed legacy corridor source link buttons and updated Techrix365 featured partner messaging.',
+      technicalDetails: [
+        'Streamlined card action rows across minimal, condensed, and grid feed layouts.',
+        'Updated Techrix365 promo card copy: "Need an app or portal like this built for your business?".',
+        'Optimized WhatsApp and X quick-share trigger handlers.'
+      ]
+    },
+    {
+      id: 'deterministic_version_updater',
+      category: 'system',
+      badge: 'Release Engine',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+      icon: RefreshCw,
+      iconColor: 'text-indigo-400 bg-indigo-950/40 border-indigo-500/30',
+      title: 'Deterministic Release Versioning & Update Engine',
+      impact: 'Zero False Reload Alerts',
+      summary: 'Replaced dynamic boot timestamp versioning with semantic version comparisons to prevent false update popups on server restarts.',
+      technicalDetails: [
+        'Version check compares actual semantic version string (APP_VERSION 2.12.0) against client bundle.',
+        'Static BUILD_ID prevents ephemeral container reboots from triggering reload banners.'
+      ]
+    },
+    {
+      id: 'wall_of_heroes',
+      category: 'visuals',
+      badge: 'Verified Responders',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+      icon: Sparkles,
+      iconColor: 'text-amber-400 bg-amber-950/40 border-amber-500/30',
+      title: 'Wall of Verified Traffic Heroes & Responders',
+      impact: 'Public Recognition & Trust',
+      summary: 'Launched a dedicated Wall of Heroes modal showcasing verified traffic marshals, patrollers, emergency responders, and top road reporters.',
+      technicalDetails: [
+        'Interactive showcase modal with tier filters (Elite, Gold, Verified Responder, Patroller).',
+        'Top bar shortcut and dashboard button integration for rapid community access.',
+        'Real-time hero count and verified badge authentication checks.'
+      ]
+    },
+    {
+      id: 'mobile_dashboard_shortcuts',
+      category: 'visuals',
+      badge: 'Mobile Interface Polish',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      icon: Smartphone,
+      iconColor: 'text-cyan-400 bg-cyan-950/40 border-cyan-500/30',
+      title: 'Mobile Dashboard Shortcuts & Quick Action Layout Refinements',
+      impact: 'Mobile Responsiveness & Zero Truncation',
+      summary: 'Refactored quick action shortcut cards to guarantee zero text truncation across mobile screens.',
+      technicalDetails: [
+        'Replaced rigid min-width flex wrapping with responsive grid & flex-row layout on mobile.',
+        'Optimized icon scale and padding across "Report Incident", "Share Alert", "GBV Assist", and "Emergency SOS".',
+        'Balanced typography line breaks to ensure 100% readability on 360px-480px smartphone viewports.'
+      ]
+    },
+    {
+      id: 'highway_header_cleanup',
+      category: 'feed',
+      badge: 'Clean UI Architecture',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+      icon: Layers,
+      iconColor: 'text-indigo-400 bg-indigo-950/40 border-indigo-500/30',
+      title: 'Highway Travel Times Header Streamline & WhatsApp Share',
+      impact: 'Commute Focus & Sharing Velocity',
+      summary: 'Streamlined Highway Travel Times section header and integrated compact mobile WhatsApp sharing.',
+      technicalDetails: [
+        'Removed redundant action buttons in the travel times header to reduce cognitive load during driving.',
+        'Added responsive WhatsApp share icon adapting between full button on desktop and compact icon on mobile.',
+        'Preserved high-speed ETA calculation across key South African highway routes (N1, N3, N4, M1, R21).'
+      ]
+    },
+    {
+      id: 'persistence_data_loss_hardening',
+      category: 'persistence',
+      badge: 'Cloud Resilience & Security',
+      badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+      icon: ShieldCheck,
+      iconColor: 'text-blue-400 bg-blue-950/40 border-blue-500/30',
+      title: 'Zero Data Loss Engine & Cloud Firestore Hardening',
+      impact: 'Database Integrity & Release Safety',
+      summary: 'Dual-tier storage sync guarantees no user accounts, feedback items, motorist likes, or hero records are lost.',
+      technicalDetails: [
+        'On-boot cloud hydration reads all collections from Google Cloud Firestore project.',
+        'Added feedbackItems, appLikes, liftClubListings, and userIdentityVerifications to automated data_store.json disk serialization.',
+        'Synchronous local seed mirroring prevents data regression during container redeployments and updates.'
+      ]
+    },
     {
       id: 'pwa_icons',
       category: 'visuals',
