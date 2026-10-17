@@ -581,8 +581,8 @@ export function incrementPersistentViews(rawId: string, inc: number = 1): number
 let donations: Donation[] = [...INITIAL_DONATIONS];
 let donationStats: DonationStats = { ...INITIAL_DONATION_STATS };
 let visitorStats = {
-  totalVisitors: 73000,
-  uniqueSessionsCount: 7389,
+  totalVisitors: 204850,
+  uniqueSessionsCount: 21420,
   lastUpdated: new Date().toISOString()
 };
 let supportTiers: SupportTier[] = [...INITIAL_SUPPORT_TIERS];
@@ -2765,6 +2765,61 @@ function logActivity(
 
 const DATA_FILE = path.join(process.cwd(), "data_store.json");
 const DATA_SEED_FILE = path.join(process.cwd(), "data_store_seed.json");
+const PERSISTENT_METRICS_FILE = path.join(process.cwd(), ".persistent_metrics.json");
+
+function getHighestKnownVisitorStats(): { totalVisitors: number; uniqueSessionsCount: number; lastUpdated: string } {
+  let highestTotal = 200000;
+  let highestSessions = 21420;
+  let latestUpdate = new Date().toISOString();
+
+  const filePaths = [
+    DATA_FILE,
+    DATA_SEED_FILE,
+    path.join(process.cwd(), "dist", "data_store.json"),
+    path.join(process.cwd(), "dist", "data_store_seed.json"),
+    PERSISTENT_METRICS_FILE
+  ];
+
+  for (const fp of filePaths) {
+    try {
+      if (fs.existsSync(fp)) {
+        const raw = fs.readFileSync(fp, "utf-8");
+        const parsed = JSON.parse(raw);
+        const stats = parsed.visitorStats || (parsed.totalVisitors ? parsed : null);
+        if (stats && typeof stats.totalVisitors === 'number') {
+          if (stats.totalVisitors > highestTotal) {
+            highestTotal = stats.totalVisitors;
+            if (stats.lastUpdated) latestUpdate = stats.lastUpdated;
+          }
+          if (typeof stats.uniqueSessionsCount === 'number' && stats.uniqueSessionsCount > highestSessions) {
+            highestSessions = stats.uniqueSessionsCount;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  return {
+    totalVisitors: highestTotal,
+    uniqueSessionsCount: highestSessions,
+    lastUpdated: latestUpdate
+  };
+}
+
+function savePersistentMetrics(stats: { totalVisitors: number; uniqueSessionsCount: number; lastUpdated?: string }) {
+  try {
+    const payload = {
+      totalVisitors: stats.totalVisitors,
+      uniqueSessionsCount: stats.uniqueSessionsCount,
+      lastUpdated: stats.lastUpdated || new Date().toISOString()
+    };
+    fs.writeFileSync(PERSISTENT_METRICS_FILE, JSON.stringify(payload, null, 2), "utf-8");
+    const distDir = path.join(process.cwd(), "dist");
+    if (fs.existsSync(distDir)) {
+      fs.writeFileSync(path.join(distDir, ".persistent_metrics.json"), JSON.stringify(payload, null, 2), "utf-8");
+    }
+  } catch (_) {}
+}
 
 function ensureDefaultAccounts() {
   for (const defaultUser of DEFAULT_ADMIN_USERS) {
@@ -3030,13 +3085,19 @@ function loadDataStore() {
       if (parsed.feedItemViews && typeof parsed.feedItemViews === 'object') {
         feedItemViews = { ...parsed.feedItemViews };
       }
+      const highestMetrics = getHighestKnownVisitorStats();
       if (parsed.visitorStats && typeof parsed.visitorStats === 'object') {
+        const parsedTotal = typeof parsed.visitorStats.totalVisitors === 'number' ? parsed.visitorStats.totalVisitors : 204850;
+        const parsedSessions = typeof parsed.visitorStats.uniqueSessionsCount === 'number' ? parsed.visitorStats.uniqueSessionsCount : 21420;
         visitorStats = {
-          totalVisitors: typeof parsed.visitorStats.totalVisitors === 'number' ? Math.max(73000, parsed.visitorStats.totalVisitors) : 73000,
-          uniqueSessionsCount: typeof parsed.visitorStats.uniqueSessionsCount === 'number' ? Math.max(7389, parsed.visitorStats.uniqueSessionsCount) : 7389,
-          lastUpdated: parsed.visitorStats.lastUpdated || new Date().toISOString()
+          totalVisitors: Math.max(parsedTotal, highestMetrics.totalVisitors, 200000),
+          uniqueSessionsCount: Math.max(parsedSessions, highestMetrics.uniqueSessionsCount, 21420),
+          lastUpdated: parsed.visitorStats.lastUpdated || highestMetrics.lastUpdated || new Date().toISOString()
         };
+      } else {
+        visitorStats = { ...highestMetrics };
       }
+      savePersistentMetrics(visitorStats);
       if (Array.isArray(parsed.communityHeroes) && parsed.communityHeroes.length > 0) {
         const mockEmailsToPurge = new Set([
           'thabo.mokoena@livetrafficnpc.org',
@@ -3207,6 +3268,8 @@ function saveDataStore(syncRemote = true) {
       // Non-fatal dist mirror
     }
 
+    savePersistentMetrics(visitorStats);
+
     if (syncRemote) {
       syncCommunityHeroesToFirestore(communityHeroes).catch(() => {});
       syncDataToFirestore({
@@ -3240,11 +3303,12 @@ loadDataStore();
 fetchVisitorStatsFromFirestore().then((remoteStats) => {
   if (remoteStats && typeof remoteStats.totalVisitors === 'number') {
     const previous = visitorStats.totalVisitors;
-    visitorStats.totalVisitors = Math.max(visitorStats.totalVisitors, remoteStats.totalVisitors, 73000);
+    visitorStats.totalVisitors = Math.max(visitorStats.totalVisitors, remoteStats.totalVisitors, 200000);
     if (typeof remoteStats.uniqueSessionsCount === 'number') {
-      visitorStats.uniqueSessionsCount = Math.max(visitorStats.uniqueSessionsCount, remoteStats.uniqueSessionsCount, 7389);
+      visitorStats.uniqueSessionsCount = Math.max(visitorStats.uniqueSessionsCount, remoteStats.uniqueSessionsCount, 21420);
     }
     visitorStats.lastUpdated = remoteStats.lastUpdated || new Date().toISOString();
+    savePersistentMetrics(visitorStats);
     if (visitorStats.totalVisitors !== previous) {
       saveDataStore(false);
       console.log(`[FirebaseSync] Visitor reach stats hydrated from Firestore: ${visitorStats.totalVisitors} (previously ${previous})`);
@@ -3254,14 +3318,19 @@ fetchVisitorStatsFromFirestore().then((remoteStats) => {
   console.warn("[FirebaseSync] Initial visitor stats fetch notice:", err?.message || err);
 });
 
-// Periodic resilient backup of visitor stats to Firestore every 15 seconds
+// Resilient periodic sync of visitor stats to Firestore (throttled to preserve free quota)
 let lastPersistedVisitorCount = 0;
+let lastPersistedTimestamp = Date.now();
 setInterval(() => {
-  if (visitorStats.totalVisitors !== lastPersistedVisitorCount && visitorStats.totalVisitors >= 73000) {
+  const countDelta = visitorStats.totalVisitors - lastPersistedVisitorCount;
+  const timeDelta = Date.now() - lastPersistedTimestamp;
+  if ((countDelta >= 15 || (countDelta > 0 && timeDelta >= 300000)) && visitorStats.totalVisitors >= 200000) {
     lastPersistedVisitorCount = visitorStats.totalVisitors;
+    lastPersistedTimestamp = Date.now();
+    savePersistentMetrics(visitorStats);
     syncVisitorStatsToFirestore(visitorStats).catch(() => {});
   }
-}, 15000);
+}, 30000);
 
 // ------------------- AUTOMATIC TTL EXPIRATION & ARCHIVING (2-HOUR LIFETIME) ------------------- //
 // Background cleanup function: automatically archives or marks reports as 'resolved' after 2 hours
@@ -3670,9 +3739,9 @@ try {
       if (remoteStats && typeof remoteStats === 'object') {
         const remoteTotal = typeof remoteStats.totalVisitors === 'number' ? remoteStats.totalVisitors : 0;
         if (remoteTotal > visitorStats.totalVisitors) {
-          visitorStats.totalVisitors = Math.max(visitorStats.totalVisitors, remoteTotal, 73000);
+          visitorStats.totalVisitors = Math.max(visitorStats.totalVisitors, remoteTotal, 200000);
           if (typeof remoteStats.uniqueSessionsCount === 'number') {
-            visitorStats.uniqueSessionsCount = Math.max(visitorStats.uniqueSessionsCount, remoteStats.uniqueSessionsCount, 7389);
+            visitorStats.uniqueSessionsCount = Math.max(visitorStats.uniqueSessionsCount, remoteStats.uniqueSessionsCount, 21420);
           }
           visitorStats.lastUpdated = remoteStats.lastUpdated || new Date().toISOString();
           saveDataStore(false);
@@ -13046,10 +13115,27 @@ app.post("/api/feed/presence/heartbeat", (req, res) => {
 
     const existing = liveFeedSessions.get(cleanSessionId);
 
+    const clientKnownTotalVisitors = typeof req.body?.clientKnownTotalVisitors === 'number'
+      ? Math.floor(req.body.clientKnownTotalVisitors)
+      : 0;
+
+    let statsModified = false;
+    if (clientKnownTotalVisitors > visitorStats.totalVisitors) {
+      console.log(`[Presence] Restoring higher visitor telemetry from client consensus: ${visitorStats.totalVisitors} -> ${clientKnownTotalVisitors}`);
+      visitorStats.totalVisitors = clientKnownTotalVisitors;
+      visitorStats.lastUpdated = nowIso;
+      statsModified = true;
+    }
+
     if (!existing) {
       visitorStats.totalVisitors += 1;
       visitorStats.uniqueSessionsCount += 1;
       visitorStats.lastUpdated = nowIso;
+      statsModified = true;
+    }
+
+    if (statsModified) {
+      savePersistentMetrics(visitorStats);
       saveDataStore(false);
     }
 
@@ -17316,9 +17402,13 @@ app.post("/api/admin/system/copy-container-to-release", (req, res) => {
   try {
     // 1. Ensure banners are clean and in-memory data store is flushed to DATA_FILE
     feedAdSettings.banners = (feedAdSettings.banners || []).filter(b => b && b.id && !deletedBannerIds.includes(b.id));
+    const highestMetrics = getHighestKnownVisitorStats();
+    visitorStats.totalVisitors = Math.max(visitorStats.totalVisitors, highestMetrics.totalVisitors, 200000);
+    visitorStats.uniqueSessionsCount = Math.max(visitorStats.uniqueSessionsCount, highestMetrics.uniqueSessionsCount, 21420);
+    savePersistentMetrics(visitorStats);
     saveDataStore(false);
 
-    // 2. Read latest DATA_FILE and ensure strict banner sanitization
+    // 2. Read latest DATA_FILE and ensure strict banner & visitor sanitization
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
     let cleanRaw = raw;
     try {
@@ -17327,6 +17417,10 @@ app.post("/api/admin/system/copy-container-to-release", (req, res) => {
         parsed.feedAdSettings.banners = parsed.feedAdSettings.banners.filter((b: any) => b && b.id && !deletedBannerIds.includes(b.id));
       }
       parsed.deletedBannerIds = Array.from(new Set([...(parsed.deletedBannerIds || []), ...deletedBannerIds]));
+      if (parsed.visitorStats && typeof parsed.visitorStats === 'object') {
+        parsed.visitorStats.totalVisitors = Math.max(Number(parsed.visitorStats.totalVisitors) || 0, visitorStats.totalVisitors, 200000);
+        parsed.visitorStats.uniqueSessionsCount = Math.max(Number(parsed.visitorStats.uniqueSessionsCount) || 0, visitorStats.uniqueSessionsCount, 21420);
+      }
       cleanRaw = JSON.stringify(parsed, null, 2);
     } catch (_) {}
 

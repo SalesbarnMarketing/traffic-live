@@ -40,11 +40,11 @@ export function useFeedPresence({
   const [activeUsersOnline, setActiveUsersOnline] = useState<number>(1);
   const [totalVisitors, setTotalVisitors] = useState<number>(() => {
     try {
-      if (typeof window === 'undefined') return 73000;
+      if (typeof window === 'undefined') return 200000;
       const saved = localStorage.getItem('livetraffic_total_visitors_cache');
-      return saved ? Math.max(73000, parseInt(saved, 10) || 73000) : 73000;
+      return saved ? Math.max(200000, parseInt(saved, 10) || 200000) : 200000;
     } catch {
-      return 73000;
+      return 200000;
     }
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -62,6 +62,13 @@ export function useFeedPresence({
       const screenRes = typeof window !== 'undefined' ? `${window.screen.width}x${window.screen.height}` : undefined;
       const tz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
 
+      let clientKnownTotalVisitors = 200000;
+      try {
+        const saved = localStorage.getItem('livetraffic_total_visitors_cache');
+        if (saved) clientKnownTotalVisitors = Math.max(200000, parseInt(saved, 10) || 200000);
+      } catch {}
+      clientKnownTotalVisitors = Math.max(clientKnownTotalVisitors, totalVisitors);
+
       const payload = {
         sessionId,
         currentTab,
@@ -71,7 +78,8 @@ export function useFeedPresence({
         screenResolution: screenRes,
         timezone: tz,
         userName: currentUser ? `${currentUser.fullName}${currentUser.surname ? ' ' + currentUser.surname : ''}`.trim() : undefined,
-        userRole: currentUser?.role || undefined
+        userRole: currentUser?.role || undefined,
+        clientKnownTotalVisitors
       };
 
       const res = await fetch('/api/feed/presence/heartbeat', {
@@ -93,10 +101,14 @@ export function useFeedPresence({
           setActiveUsersOnline(data.activeUsersOnline);
         }
         if (typeof data.totalVisitors === 'number') {
-          setTotalVisitors(data.totalVisitors);
-          try {
-            localStorage.setItem('livetraffic_total_visitors_cache', String(data.totalVisitors));
-          } catch {}
+          setTotalVisitors(prev => {
+            const safePrev = Math.max(prev || 0, 200000);
+            const highest = Math.max(safePrev, data.totalVisitors);
+            try {
+              localStorage.setItem('livetraffic_total_visitors_cache', String(highest));
+            } catch {}
+            return highest;
+          });
         }
 
         // Check if anonymous connection is running on an outdated build
@@ -120,7 +132,7 @@ export function useFeedPresence({
     } catch {
       // Non-critical network error
     }
-  }, [isFeedActive, currentTab, viewMode, feedFilter, activeRegion, currentUser]);
+  }, [isFeedActive, currentTab, viewMode, feedFilter, activeRegion, currentUser, totalVisitors]);
 
   // Fetch full detailed presence list (for inspector modal / admin views)
   const fetchPresenceDetails = useCallback(async () => {
@@ -141,10 +153,14 @@ export function useFeedPresence({
           setActiveUsersOnline(data.activeUsersOnline);
         }
         if (typeof data.totalVisitors === 'number') {
-          setTotalVisitors(data.totalVisitors);
-          try {
-            localStorage.setItem('livetraffic_total_visitors_cache', String(data.totalVisitors));
-          } catch {}
+          setTotalVisitors(prev => {
+            const safePrev = Math.max(prev || 0, 200000);
+            const highest = Math.max(safePrev, data.totalVisitors);
+            try {
+              localStorage.setItem('livetraffic_total_visitors_cache', String(highest));
+            } catch {}
+            return highest;
+          });
         }
         setLastUpdated(new Date());
       }

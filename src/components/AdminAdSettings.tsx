@@ -1141,7 +1141,12 @@ export const AdminAdSettings: React.FC<AdminAdSettingsProps> = ({
               onClick={() => {
                 const curImpressions = (settings.banners || []).reduce((acc, b) => acc + (b.impressions || 0), 0);
                 setTargetImpressionsInput(Math.max(60840, curImpressions));
-                setTargetVisitorsInput(63240);
+                let curVisitors = 204850;
+                try {
+                  const saved = localStorage.getItem('livetraffic_total_visitors_cache');
+                  if (saved) curVisitors = Math.max(204850, parseInt(saved, 10) || 204850);
+                } catch {}
+                setTargetVisitorsInput(curVisitors);
                 setIsCalibrateModalOpen(true);
               }}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 transition text-[11px] font-medium cursor-pointer"
@@ -3387,12 +3392,12 @@ export const AdminAdSettings: React.FC<AdminAdSettingsProps> = ({
                     type="number"
                     value={targetVisitorsInput}
                     onChange={(e) => setTargetVisitorsInput(Number(e.target.value))}
-                    min={60000}
+                    min={200000}
                     step={100}
                     className="w-full bg-[#050608] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
                   />
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Baseline is 63,240+. Synchronizes to public footer metrics and analytics counters.
+                    Baseline is 204,850+. Synchronizes to public footer metrics, prevents release resets, and persists across releases.
                   </p>
                 </div>
               </div>

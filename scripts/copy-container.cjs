@@ -30,11 +30,48 @@ try {
       }
       parsed.deletedBannerIds = Array.from(blockedAdIds);
 
-      // Protect visitor count from resetting during build/release packaging
-      if (parsed.visitorStats && typeof parsed.visitorStats === 'object') {
-        parsed.visitorStats.totalVisitors = Math.max(73000, Number(parsed.visitorStats.totalVisitors) || 73000);
-        parsed.visitorStats.uniqueSessionsCount = Math.max(7389, Number(parsed.visitorStats.uniqueSessionsCount) || 7389);
+      // Check all files to find the absolute highest known visitor count
+      const metricCandidates = [
+        dataStorePath,
+        dataSeedPath,
+        distDataStorePath,
+        distDataSeedPath,
+        path.join(rootDir, '.persistent_metrics.json'),
+        path.join(distDir, '.persistent_metrics.json')
+      ];
+      let maxVisitors = 200000;
+      let maxSessions = 21420;
+      let latestUpdated = new Date().toISOString();
+
+      for (const mPath of metricCandidates) {
+        try {
+          if (fs.existsSync(mPath)) {
+            const mRaw = fs.readFileSync(mPath, 'utf-8');
+            const mData = JSON.parse(mRaw);
+            const mStats = mData.visitorStats || (mData.totalVisitors ? mData : null);
+            if (mStats && typeof mStats.totalVisitors === 'number') {
+              if (mStats.totalVisitors > maxVisitors) maxVisitors = mStats.totalVisitors;
+              if (typeof mStats.uniqueSessionsCount === 'number' && mStats.uniqueSessionsCount > maxSessions) {
+                maxSessions = mStats.uniqueSessionsCount;
+              }
+              if (mStats.lastUpdated) latestUpdated = mStats.lastUpdated;
+            }
+          }
+        } catch (_) {}
       }
+
+      // Protect visitor count from ever resetting during build/release packaging
+      if (!parsed.visitorStats || typeof parsed.visitorStats !== 'object') {
+        parsed.visitorStats = { totalVisitors: maxVisitors, uniqueSessionsCount: maxSessions, lastUpdated: latestUpdated };
+      } else {
+        parsed.visitorStats.totalVisitors = Math.max(maxVisitors, Number(parsed.visitorStats.totalVisitors) || 0, 200000);
+        parsed.visitorStats.uniqueSessionsCount = Math.max(maxSessions, Number(parsed.visitorStats.uniqueSessionsCount) || 0, 21420);
+      }
+
+      // Persist metrics file in root
+      try {
+        fs.writeFileSync(path.join(rootDir, '.persistent_metrics.json'), JSON.stringify(parsed.visitorStats, null, 2), 'utf-8');
+      } catch (_) {}
 
       // Protect Community Heroes reputation points and achievements across releases
       if (Array.isArray(parsed.communityHeroes)) {

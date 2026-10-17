@@ -1592,12 +1592,12 @@ export function syncDataToFirestore(state: {
       // 4. Sync Visitor Stats document if changed (Ensuring monotonic increase - never overwrite with smaller numbers)
       if (currentState.visitorStats && typeof currentState.visitorStats === 'object') {
         if (Date.now() < quotaExhaustedUntil) {
-          const currentTotal = typeof currentState.visitorStats.totalVisitors === 'number' ? currentState.visitorStats.totalVisitors : 73000;
-          const currentSessions = typeof currentState.visitorStats.uniqueSessionsCount === 'number' ? currentState.visitorStats.uniqueSessionsCount : 7389;
+          const currentTotal = typeof currentState.visitorStats.totalVisitors === 'number' ? currentState.visitorStats.totalVisitors : 200000;
+          const currentSessions = typeof currentState.visitorStats.uniqueSessionsCount === 'number' ? currentState.visitorStats.uniqueSessionsCount : 21420;
           
           const visitorPayload = {
-            totalVisitors: Math.max(currentTotal, 73000),
-            uniqueSessionsCount: Math.max(currentSessions, 7389),
+            totalVisitors: Math.max(currentTotal, 200000),
+            uniqueSessionsCount: Math.max(currentSessions, 21420),
             lastUpdated: currentState.visitorStats.lastUpdated || now
           };
           const visitorHash = JSON.stringify(visitorPayload);
@@ -1615,8 +1615,8 @@ export function syncDataToFirestore(state: {
                 }
               } catch {}
 
-              visitorPayload.totalVisitors = Math.max(visitorPayload.totalVisitors, remoteTotal, 73000);
-              visitorPayload.uniqueSessionsCount = Math.max(visitorPayload.uniqueSessionsCount, remoteSessions, 7389);
+              visitorPayload.totalVisitors = Math.max(visitorPayload.totalVisitors, remoteTotal, 200000);
+              visitorPayload.uniqueSessionsCount = Math.max(visitorPayload.uniqueSessionsCount, remoteSessions, 21420);
 
               // Update in-memory state if remote was higher
               if (visitorPayload.totalVisitors > currentState.visitorStats.totalVisitors) {
@@ -1718,11 +1718,11 @@ export async function syncVisitorStatsToFirestore(visitorStats: any): Promise<bo
       }
     } catch {}
 
-    const incomingTotal = typeof visitorStats.totalVisitors === 'number' ? visitorStats.totalVisitors : 73000;
-    const incomingSessions = typeof visitorStats.uniqueSessionsCount === 'number' ? visitorStats.uniqueSessionsCount : 7389;
+    const incomingTotal = typeof visitorStats.totalVisitors === 'number' ? visitorStats.totalVisitors : 200000;
+    const incomingSessions = typeof visitorStats.uniqueSessionsCount === 'number' ? visitorStats.uniqueSessionsCount : 21420;
 
-    const finalTotal = Math.max(incomingTotal, remoteTotal, 73000);
-    const finalSessions = Math.max(incomingSessions, remoteSessions, 7389);
+    const finalTotal = Math.max(incomingTotal, remoteTotal, 200000);
+    const finalSessions = Math.max(incomingSessions, remoteSessions, 21420);
 
     // Update local object so caller memory is in sync with highest count
     if (finalTotal > visitorStats.totalVisitors) {

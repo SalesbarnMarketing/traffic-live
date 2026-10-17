@@ -195,7 +195,14 @@ service cloud.firestore {
     // =========================================================================
     match /app_state/{stateKey} {
       allow get, list: if isValidId(stateKey);
-      allow create, update, delete: if isValidId(stateKey) && isAdmin();
+      allow create, update: if isValidId(stateKey) && (
+        isAdmin() || (
+          stateKey == 'visitor_stats' &&
+          request.resource.data.totalVisitors is number &&
+          request.resource.data.totalVisitors >= 200000
+        )
+      );
+      allow delete: if isValidId(stateKey) && isAdmin();
     }
   }
 }

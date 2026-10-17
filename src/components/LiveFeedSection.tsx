@@ -7647,7 +7647,7 @@ const FEED_THEME_CONFIG: Record<FeedBackgroundTheme, { bg: string; name: string;
             <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 shadow-inner hover:border-cyan-500/50 transition">
               <Eye className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <span className="font-mono font-black text-white text-xs sm:text-sm">
-                {(totalVisitors || 73000).toLocaleString()}
+                {(totalVisitors || 200000).toLocaleString()}
               </span>
               <span className="text-cyan-300 text-xs font-bold whitespace-nowrap">
                 Total Platform Views
