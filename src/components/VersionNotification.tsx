@@ -19,6 +19,26 @@ interface VersionNotificationProps {
   onOpenReleaseNotes?: () => void;
 }
 
+// Helper to parse semantic version numbers (e.g. "2.13.0" -> [2, 13, 0])
+function parseSemver(v: string): number[] {
+  const clean = v.replace(/^v/i, '').trim();
+  const parts = clean.split('.').map(p => parseInt(p, 10) || 0);
+  while (parts.length < 3) parts.push(0);
+  return parts.slice(0, 3);
+}
+
+function isVersionNewer(remoteVersion: string, localVersion: string): boolean {
+  if (!remoteVersion || !localVersion) return false;
+  if (remoteVersion === localVersion) return false;
+  const [rMaj, rMin, rPat] = parseSemver(remoteVersion);
+  const [lMaj, lMin, lPat] = parseSemver(localVersion);
+  if (rMaj > lMaj) return true;
+  if (rMaj < lMaj) return false;
+  if (rMin > lMin) return true;
+  if (rMin < lMin) return false;
+  return rPat > lPat;
+}
+
 export const VersionNotification: React.FC<VersionNotificationProps> = ({
   currentVersion = APP_VERSION,
   currentUser = null,
@@ -31,7 +51,7 @@ export const VersionNotification: React.FC<VersionNotificationProps> = ({
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [isReloading, setIsReloading] = useState<boolean>(false);
   const [anonymousCountdown, setAnonymousCountdown] = useState<number | null>(null);
-  const [manualCheckFeedback, setManualCheckFeedback] = useState<{ type: 'checking' | 'latest' | 'updated'; message: string } | null>(null);
+  const [manualCheckFeedback, setManualCheckFeedback] = useState<{ type: 'checking' | 'latest' | 'updated' | 'error'; message: string } | null>(null);
   const initialRecordedRef = useRef<boolean>(false);
   const lastCheckTimeRef = useRef<number>(0);
   const autoReloadTriggeredRef = useRef<boolean>(false);
@@ -66,87 +86,75 @@ export const VersionNotification: React.FC<VersionNotificationProps> = ({
     }
 
     try {
-      const data = await apiFetch<VersionInfo>('/api/version', {
-        cacheTtlMs: isManual ? 0 : 120000,
-        background: !isManual
+      // Direct fetch with cache-busting timestamp so neither browser nor proxy caches the check
+      const res = await fetch(`/api/version?_t=${Date.now()}`, {
+        headers: { 'Accept': 'application/json', 'Cache-Control': 'no-cache' }
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: VersionInfo = await res.json();
       lastCheckTimeRef.current = Date.now();
-      if (!data) throw new Error('Version check failed');
+      if (!data || !data.version) throw new Error('Invalid version response');
 
       const isAnonymous = !currentUser;
 
       if (!initialRecordedRef.current) {
-        // Record initial build ID on first client boot
         const storedInitial = sessionStorage.getItem('client_app_build_id');
         const activeBuild = storedInitial || data.buildId || `v${data.version}`;
         sessionStorage.setItem('client_app_build_id', activeBuild);
         setInitialBuildId(activeBuild);
         initialRecordedRef.current = true;
+      }
 
-        // If this is an anonymous connection and server version differs from client bundle version, enforce reload
-        if (isAnonymous && data.version && data.version !== currentVersion) {
+      // Check whether remote version is newer or different from client bundle
+      const isSemverHigher = isVersionNewer(data.version, currentVersion);
+      const isDifferent = data.version !== currentVersion;
+      const isUpdateAvailable = isSemverHigher || (isDifferent && Boolean(data.version));
+
+      if (isUpdateAvailable) {
+        setLatestVersionInfo(data);
+        setHasNewVersion(true);
+        setIsDismissed(false); // Re-open banner if dismissed previously
+
+        if (isManual) {
+          setManualCheckFeedback({
+            type: 'updated',
+            message: `New update v${data.version} available! Click Reload below.`
+          });
+        }
+
+        // If anonymous connection detected: enforce an automated reload to guarantee newest version
+        if (isAnonymous) {
           const lastReloadTs = parseInt(sessionStorage.getItem('livetraffic_last_anon_reload_ts') || '0', 10);
           if (Date.now() - lastReloadTs > 30000 && !autoReloadTriggeredRef.current) {
             autoReloadTriggeredRef.current = true;
-            setLatestVersionInfo(data);
             setAnonymousCountdown(2);
             setTimeout(() => {
               executeReload(data.buildId);
-            }, 1800);
+            }, 2000);
             return;
           }
         }
       } else {
-        const storedInitial = sessionStorage.getItem('client_app_build_id') || initialBuildId;
-        
-        // Only consider it a new build if the semantic version string has actually changed
-        const isNewBuild = Boolean(data.version && data.version !== currentVersion);
-
-        if (isNewBuild) {
-          setLatestVersionInfo(data);
-          setHasNewVersion(true);
-          setIsDismissed(false); // Re-open banner if dismissed previously
-
-          // If anonymous connection detected: enforce an automated reload to guarantee newest version
-          if (isAnonymous) {
-            const lastReloadTs = parseInt(sessionStorage.getItem('livetraffic_last_anon_reload_ts') || '0', 10);
-            if (Date.now() - lastReloadTs > 30000 && !autoReloadTriggeredRef.current) {
-              autoReloadTriggeredRef.current = true;
-              setAnonymousCountdown(2);
-              setTimeout(() => {
-                executeReload(data.buildId);
-              }, 1800);
-              return;
-            }
-          }
-
-          if (isManual) {
-            setManualCheckFeedback({
-              type: 'updated',
-              message: `New version ${data.version} is available! Click Reload below.`
-            });
-          }
-          return;
+        // Already on the latest version
+        if (isManual) {
+          setManualCheckFeedback({
+            type: 'latest',
+            message: `You are up to date! Running v${currentVersion}.`
+          });
+          setTimeout(() => setManualCheckFeedback(null), 4000);
         }
       }
-
+    } catch (err) {
+      console.warn('[VersionCheck] Check failed:', err);
       if (isManual) {
         setManualCheckFeedback({
-          type: 'latest',
-          message: `You are currently running the latest version (${data.version || currentVersion}).`
+          type: 'error',
+          message: `Unable to verify version: ${err instanceof Error ? err.message : 'Network error'}`
         });
         setTimeout(() => setManualCheckFeedback(null), 4000);
       }
-    } catch (err) {
-      if (isManual) {
-        setManualCheckFeedback({
-          type: 'latest',
-          message: `Connected to latest version (${currentVersion}).`
-        });
-        setTimeout(() => setManualCheckFeedback(null), 3000);
-      }
     }
-  }, [initialBuildId, currentVersion, currentUser, executeReload]);
+  }, [currentVersion, currentUser, executeReload]);
 
   // Initial check on mount and periodic polling every 3 minutes (180s)
   useEffect(() => {
@@ -187,7 +195,7 @@ export const VersionNotification: React.FC<VersionNotificationProps> = ({
   const renderManualToast = () => {
     if (!manualCheckFeedback) return null;
     return (
-      <div className="fixed top-20 right-4 z-[9999] max-w-sm bg-slate-900/95 border border-[#D4A237]/60 text-white rounded-2xl p-4 shadow-2xl backdrop-blur-md flex items-center space-x-3 animate-fadeIn">
+      <div className="fixed top-5 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 z-[999999] w-[90%] sm:w-auto max-w-sm bg-slate-900/98 border border-[#D4A237] text-white rounded-2xl p-4 shadow-2xl backdrop-blur-md flex items-center space-x-3 animate-fadeIn">
         {manualCheckFeedback.type === 'checking' && (
           <RefreshCw className="w-5 h-5 text-[#D4A237] animate-spin shrink-0" />
         )}
@@ -196,6 +204,9 @@ export const VersionNotification: React.FC<VersionNotificationProps> = ({
         )}
         {manualCheckFeedback.type === 'updated' && (
           <ArrowUpCircle className="w-5 h-5 text-amber-400 shrink-0" />
+        )}
+        {manualCheckFeedback.type === 'error' && (
+          <X className="w-5 h-5 text-rose-400 shrink-0" />
         )}
         <div className="text-xs font-semibold leading-relaxed">
           {manualCheckFeedback.message}
@@ -207,26 +218,29 @@ export const VersionNotification: React.FC<VersionNotificationProps> = ({
   // Render anonymous connection auto-reload enforcement banner
   if (anonymousCountdown !== null || (hasNewVersion && !currentUser)) {
     return (
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] w-[92%] max-w-lg animate-bounce">
-        <div className="bg-gradient-to-r from-amber-950 via-slate-950 to-amber-950 border-2 border-[#D4A237] rounded-2xl p-4 shadow-2xl backdrop-blur-xl text-white flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-xl bg-[#D4A237]/20 border border-[#D4A237] flex items-center justify-center shrink-0">
-            <RefreshCw className="w-5 h-5 text-[#D4A237] animate-spin" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2">
-              <span className="bg-[#D4A237] text-slate-950 text-[10px] font-black uppercase px-2 py-0.5 rounded font-mono">
-                AUTO-REFRESH
-              </span>
-              <span className="text-xs font-bold text-[#D4A237]">
-                Anonymous Connection Detected
-              </span>
+      <>
+        {renderManualToast()}
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] w-[92%] max-w-lg animate-bounce">
+          <div className="bg-gradient-to-r from-amber-950 via-slate-950 to-amber-950 border-2 border-[#D4A237] rounded-2xl p-4 shadow-2xl backdrop-blur-xl text-white flex items-center space-x-3.5">
+            <div className="w-10 h-10 rounded-xl bg-[#D4A237]/20 border border-[#D4A237] flex items-center justify-center shrink-0">
+              <RefreshCw className="w-5 h-5 text-[#D4A237] animate-spin" />
             </div>
-            <p className="text-xs text-slate-200 mt-0.5 leading-snug">
-              Enforcing live reload to apply the latest updates and real-time corridor reports (v{latestVersionInfo?.version || currentVersion})...
-            </p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <span className="bg-[#D4A237] text-slate-950 text-[10px] font-black uppercase px-2 py-0.5 rounded font-mono">
+                  AUTO-REFRESH
+                </span>
+                <span className="text-xs font-bold text-[#D4A237]">
+                  Anonymous Connection Detected
+                </span>
+              </div>
+              <p className="text-xs text-slate-200 mt-0.5 leading-snug">
+                Enforcing live reload to apply the latest updates and real-time corridor reports (v{latestVersionInfo?.version || currentVersion})...
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 

@@ -31,7 +31,7 @@ export function useFeedPresence({
   feedFilter = 'all',
   activeRegion = 'all',
   currentUser = null,
-  heartbeatIntervalMs = 60000,
+  heartbeatIntervalMs = 240000, // Extended to 4 minutes to conserve proxy limits
   isFeedActive = true
 }: UseFeedPresenceOptions = {}) {
   const [presenceData, setPresenceData] = useState<FeedPresenceData | null>(null);

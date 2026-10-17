@@ -71,15 +71,19 @@ export async function apiFetch<T = any>(
 ): Promise<T | null> {
   const method = (options.method || 'GET').toUpperCase();
   const isGet = method === 'GET';
-  const cacheTtlMs = options.cacheTtlMs ?? (isGet ? 20000 : 0);
+  const isRealtimeEndpoint = url.includes('/bootstrap') || url.includes('/feed') || url.includes('/reports') || url.includes('/sos');
+  const defaultTtl = isRealtimeEndpoint ? 5000 : 30000;
+  const cacheTtlMs = options.cacheTtlMs ?? (isGet ? defaultTtl : 0);
 
   // 1. Visibility Check: If this is a background poll and the page is hidden, skip entirely
   if (options.background && typeof document !== 'undefined' && document.hidden) {
     return null;
   }
 
-  // 2. Cooldown check: If we've hit 429, prevent spamming the edge proxy
-  if (Date.now() < rateLimitCooldownUntil) {
+  // 2. Cooldown check: If we've hit 429, prevent spamming the edge proxy.
+  // Local system endpoints like /api/version and explicit forceFresh requests bypass cooldown
+  const isLocalSystemCheck = url.includes('/api/version');
+  if (Date.now() < rateLimitCooldownUntil && !isLocalSystemCheck && !options.forceFresh) {
     // For GETs, return stale cached data if we have it
     if (isGet && cache.has(url)) {
       return cache.get(url)!.data as T;

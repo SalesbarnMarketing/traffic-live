@@ -9,8 +9,30 @@ interface BetaNoticeCardProps {
 export const BetaNoticeCard: React.FC<BetaNoticeCardProps> = ({ 
   className = ''
 }) => {
-  const handleCheckUpdates = () => {
+  const [isChecking, setIsChecking] = React.useState<boolean>(false);
+  const [buttonFeedback, setButtonFeedback] = React.useState<string | null>(null);
+
+  const handleCheckUpdates = async () => {
+    setIsChecking(true);
+    setButtonFeedback('Checking...');
     window.dispatchEvent(new CustomEvent('check-app-version'));
+
+    try {
+      const res = await fetch(`/api/version?_t=${Date.now()}`, {
+        headers: { 'Accept': 'application/json', 'Cache-Control': 'no-cache' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setButtonFeedback(`v${data.version || '2.13.0'} Active`);
+      } else {
+        setButtonFeedback('Checked');
+      }
+    } catch {
+      setButtonFeedback('Checked');
+    } finally {
+      setIsChecking(false);
+      setTimeout(() => setButtonFeedback(null), 3500);
+    }
   };
 
   return (
@@ -75,11 +97,12 @@ export const BetaNoticeCard: React.FC<BetaNoticeCardProps> = ({
         <button
           type="button"
           onClick={handleCheckUpdates}
-          className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-[#D4A237]/50 text-[#D4A237] hover:text-amber-200 transition shadow-md active:scale-95 cursor-pointer font-bold"
+          disabled={isChecking}
+          className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-[#D4A237]/50 text-[#D4A237] hover:text-amber-200 transition shadow-md active:scale-95 cursor-pointer font-bold disabled:opacity-60"
           title="Check if a newer version of the app is available"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-[#D4A237]" />
-          <span>Check for Updates</span>
+          <RefreshCw className={`w-3.5 h-3.5 text-[#D4A237] ${isChecking ? 'animate-spin' : ''}`} />
+          <span>{buttonFeedback || 'Check for Updates'}</span>
         </button>
       </div>
     </div>

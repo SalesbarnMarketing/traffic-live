@@ -24,6 +24,32 @@ export const AdminReleaseNotesTab: React.FC<AdminReleaseNotesTabProps> = ({
   const [activeFilter, setActiveFilter] = useState<'all' | 'notifications' | 'feed' | 'persistence' | 'visuals' | 'system'>('all');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'checking' | 'verified'>('idle');
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [versionCheckStatus, setVersionCheckStatus] = useState<'idle' | 'checking' | 'latest' | 'update_available'>('idle');
+  const [versionCheckDetails, setVersionCheckDetails] = useState<string | null>(null);
+
+  const handleCheckVersionUpdate = async () => {
+    setVersionCheckStatus('checking');
+    window.dispatchEvent(new CustomEvent('check-app-version'));
+    try {
+      const res = await fetch(`/api/version?_t=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.version && data.version !== APP_VERSION) {
+          setVersionCheckStatus('update_available');
+          setVersionCheckDetails(`New Version v${data.version} available on server! (Client is running v${APP_VERSION}). Click Reload & Update below.`);
+        } else {
+          setVersionCheckStatus('latest');
+          setVersionCheckDetails(`Verified up to date: Server & Client in sync on v${data.version || APP_VERSION}. Build: ${data.buildId || BUILD_NUMBER}`);
+        }
+      } else {
+        setVersionCheckStatus('latest');
+        setVersionCheckDetails(`Version endpoint online (HTTP ${res.status}). Client running v${APP_VERSION}.`);
+      }
+    } catch {
+      setVersionCheckStatus('latest');
+      setVersionCheckDetails(`Running v${APP_VERSION} (${BUILD_NUMBER}).`);
+    }
+  };
 
   const handleTestCloudSync = async () => {
     setSyncStatus('checking');
@@ -43,6 +69,37 @@ export const AdminReleaseNotesTab: React.FC<AdminReleaseNotesTabProps> = ({
   };
 
   const changes = [
+    {
+      id: 'floating_whatsapp_feeds',
+      category: 'feed',
+      badge: 'Feeds Action HUD',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+      icon: Sparkles,
+      iconColor: 'text-emerald-400 bg-emerald-950/40 border-emerald-500/30',
+      title: 'Floating WhatsApp Quick Action Button (+27 67 708 3048)',
+      impact: 'Instant Community Dispatch & Support',
+      summary: 'Added a persistent floating WhatsApp direct communication button situated directly above the + action button on Feeds for fast hazard dispatch.',
+      technicalDetails: [
+        'Integrated official WhatsApp brand action orb with animated live online pulse beacon.',
+        'Direct link to +27 67 708 3048 with pre-populated message for quick dispatch.',
+        'Optimized viewport spacing with interactive hover tooltip on desktop devices.'
+      ]
+    },
+    {
+      id: 'techrix_custom_system_card',
+      category: 'feed',
+      badge: 'Partner Copy',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+      icon: Layers,
+      iconColor: 'text-cyan-400 bg-cyan-950/40 border-cyan-500/30',
+      title: 'Techrix365 Custom System Builder Card Refresh',
+      impact: 'Conversion & Inquiries',
+      summary: 'Updated partner card messaging to highlight custom web portals, mobile apps, and high-performance business websites with WhatsApp discussion integration.',
+      technicalDetails: [
+        'Updated both minimal and full card variants with new high-impact value proposition.',
+        'Connected direct WhatsApp consultation trigger for custom development inquiries.'
+      ]
+    },
     {
       id: 'smtp_integration',
       category: 'system',
@@ -71,7 +128,7 @@ export const AdminReleaseNotesTab: React.FC<AdminReleaseNotesTabProps> = ({
       summary: 'Removed legacy corridor source link buttons and updated Techrix365 featured partner messaging.',
       technicalDetails: [
         'Streamlined card action rows across minimal, condensed, and grid feed layouts.',
-        'Updated Techrix365 promo card copy: "Need an app or portal like this built for your business?".',
+        'Updated Techrix365 promo card copy: "Need a custom system for your business? We build web portals, mobile apps, and high-performance websites. Tap the WhatsApp button to discuss what we can build for you.".',
         'Optimized WhatsApp and X quick-share trigger handlers.'
       ]
     },
@@ -352,6 +409,17 @@ export const AdminReleaseNotesTab: React.FC<AdminReleaseNotesTabProps> = ({
 
             <button
               type="button"
+              onClick={handleCheckVersionUpdate}
+              disabled={versionCheckStatus === 'checking'}
+              className="flex items-center space-x-1.5 bg-[#080E1A] hover:bg-amber-950/40 text-amber-300 border border-[#D4A237]/60 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+              title="Query server for the latest deployed release build"
+            >
+              <RefreshCw className={`w-4 h-4 text-amber-400 ${versionCheckStatus === 'checking' ? 'animate-spin' : ''}`} />
+              <span>{versionCheckStatus === 'checking' ? 'Checking...' : 'Check for Updates'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleTestCloudSync}
               disabled={syncStatus === 'checking'}
               className="flex items-center space-x-1.5 bg-[#080E1A] hover:bg-emerald-950/40 text-emerald-400 border border-emerald-500/40 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
@@ -362,16 +430,34 @@ export const AdminReleaseNotesTab: React.FC<AdminReleaseNotesTabProps> = ({
           </div>
         </div>
 
+        {/* Version Check Status Banner if checked */}
+        {versionCheckDetails && (
+          <div className={`mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs animate-fadeIn ${
+            versionCheckStatus === 'update_available' ? 'text-amber-300 font-bold' : 'text-emerald-400'
+          }`}>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className={`w-4 h-4 shrink-0 ${versionCheckStatus === 'update_available' ? 'text-amber-400' : 'text-emerald-400'}`} />
+              <span>{versionCheckDetails}</span>
+            </div>
+            <button 
+              onClick={() => setVersionCheckDetails(null)}
+              className="text-slate-400 hover:text-white ml-2 text-[11px] cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Sync Status Banner if checked */}
         {syncMessage && (
-          <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-emerald-400 animate-fadeIn">
+          <div className="mt-2 pt-2 border-t border-slate-800/50 flex items-center justify-between text-xs text-emerald-400 animate-fadeIn">
             <div className="flex items-center space-x-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{syncMessage}</span>
             </div>
             <button 
               onClick={() => setSyncMessage(null)}
-              className="text-slate-400 hover:text-white ml-2 text-[11px]"
+              className="text-slate-400 hover:text-white ml-2 text-[11px] cursor-pointer"
             >
               Dismiss
             </button>

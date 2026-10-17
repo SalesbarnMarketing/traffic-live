@@ -3,6 +3,7 @@ import { IncidentReport, EmergencySOS, FeedItem, Donation, DonationStats, Report
 import { INITIAL_FEED_ITEMS } from './data/initialData';
 import { scrapeLiveITrafficInBrowser } from './utils/browserITrafficScraper';
 import { apiFetch, isCurrentlyRateLimited, clearAllPostCaches } from './utils/apiClient';
+import { parseDateToMillis } from './utils/dateParser';
 import { InteractiveMap } from './components/InteractiveMap';
 import { MainDashboard } from './components/MainDashboard';
 import { ReportModal } from './components/ReportModal';
@@ -191,7 +192,45 @@ export default function App() {
 
   const [reports, setReports] = useState<IncidentReport[]>([]);
   const [sosRequests, setSosRequests] = useState<EmergencySOS[]>([]);
-  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [feedItems, setFeedItems] = useState<FeedItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('livetraffic_cached_feed_items');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const now = Date.now();
+            const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+            return parsed.map((item: any) => {
+              const itemTime = parseDateToMillis(item.timestamp) || parseDateToMillis(item.startTime) || parseDateToMillis(item.lastUpdated) || 0;
+              const isOlder = (itemTime > 0 && (now - itemTime) > TWO_HOURS_MS) || Boolean(item.isOlderData);
+              if (isOlder) {
+                return {
+                  ...item,
+                  status: 'resolved',
+                  cleared: true,
+                  isCleared: true,
+                  isOlderData: true
+                };
+              }
+              return item;
+            });
+          }
+        }
+      } catch {}
+    }
+    return INITIAL_FEED_ITEMS;
+  });
+
+  // Keep older feed data cached in localStorage so feed is never empty even on cold start
+  useEffect(() => {
+    if (typeof window !== 'undefined' && feedItems.length > 0) {
+      try {
+        localStorage.setItem('livetraffic_cached_feed_items', JSON.stringify(feedItems.slice(0, 100)));
+      } catch {}
+    }
+  }, [feedItems]);
+
   const [donations, setDonations] = useState<Donation[]>([]);
   const [donationStats, setDonationStats] = useState<DonationStats>({
     totalRaised: 1850,
@@ -218,6 +257,29 @@ export default function App() {
   const [reportModalAutoDetectGps, setReportModalAutoDetectGps] = useState<boolean>(true);
   const [showLiveTrafficNpc, setShowLiveTrafficNpc] = useState<boolean>(true);
   const [focusedAlertQuery, setFocusedAlertQuery] = useState<string | null>(null);
+
+  // Synchronized Feed Background Theme state (Warm Cream #FAF5E9 by default)
+  const [feedBgTheme, setFeedBgTheme] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('livetraffic_feed_bg_theme');
+        if (saved && ['cream', 'slate', 'charcoal', 'graphite', 'soft', 'dark'].includes(saved)) {
+          return saved;
+        }
+      } catch {}
+    }
+    return 'cream';
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      if (e?.detail?.theme) {
+        setFeedBgTheme(e.detail.theme);
+      }
+    };
+    window.addEventListener('livetraffic-feed-theme-changed', handleThemeChange);
+    return () => window.removeEventListener('livetraffic-feed-theme-changed', handleThemeChange);
+  }, []);
 
   // Build rotating alerts list from live feed items, i-Traffic events, and approved hazard reports
   const rotatingAlerts = useMemo(() => {
@@ -396,7 +458,35 @@ export default function App() {
           seenIds.add(item.id);
           return true;
         });
-        setFeedItems(uniqueFeed);
+        if (uniqueFeed.length > 0) {
+          setFeedItems(prev => {
+            const map = new Map<string, FeedItem>();
+            for (const item of uniqueFeed) {
+              map.set(item.id, item);
+            }
+            // Preserve older items from prev with strict 2-hour auto-clear applied
+            const now = Date.now();
+            const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+            for (const item of prev) {
+              if (item && item.id && !map.has(item.id) && !isGloballyDeleted(item.id)) {
+                const itemTime = parseDateToMillis(item.timestamp) || parseDateToMillis(item.startTime) || parseDateToMillis(item.lastUpdated) || 0;
+                const isOlder = (itemTime > 0 && (now - itemTime) > TWO_HOURS_MS) || (item as any).isOlderData;
+                if (isOlder) {
+                  map.set(item.id, {
+                    ...item,
+                    status: 'resolved',
+                    cleared: true,
+                    isCleared: true,
+                    isOlderData: true
+                  });
+                } else {
+                  map.set(item.id, item);
+                }
+              }
+            }
+            return Array.from(map.values());
+          });
+        }
         return;
       }
     } catch {
@@ -463,7 +553,33 @@ export default function App() {
       }
       if (Array.isArray(data.feedItems) && data.feedItems.length > 0) {
         const validFeed = data.feedItems.filter((f: any) => f && f.id && !isGloballyDeleted(f.id));
-        setFeedItems(validFeed);
+        setFeedItems(prev => {
+          const map = new Map<string, FeedItem>();
+          for (const item of validFeed) {
+            map.set(item.id, item);
+          }
+          // Preserve older data from prev with strict 2-hour auto-clear applied
+          const now = Date.now();
+          const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+          for (const item of prev) {
+            if (item && item.id && !map.has(item.id) && !isGloballyDeleted(item.id)) {
+              const itemTime = parseDateToMillis(item.timestamp) || parseDateToMillis(item.startTime) || parseDateToMillis(item.lastUpdated) || 0;
+              const isOlder = (itemTime > 0 && (now - itemTime) > TWO_HOURS_MS) || (item as any).isOlderData;
+              if (isOlder) {
+                map.set(item.id, {
+                  ...item,
+                  status: 'resolved',
+                  cleared: true,
+                  isCleared: true,
+                  isOlderData: true
+                });
+              } else {
+                map.set(item.id, item);
+              }
+            }
+          }
+          return Array.from(map.values());
+        });
       }
     } else {
       // Graceful fallback to individual endpoints only if bootstrap failed
@@ -506,21 +622,21 @@ export default function App() {
       setActiveTab('pricing');
     }
 
-    // Auto-refresh feeds and bootstrap every 45 seconds ONLY when tab is visible
+    // Auto-refresh feeds and bootstrap every 25 seconds for snappy live updates when tab is active
     let lastRefreshTime = Date.now();
     const interval = setInterval(() => {
-      // Never poll in background tabs to conserve edge-proxy rate limits
+      // Never poll in background tabs to conserve resources
       if (typeof document !== 'undefined' && document.hidden) return;
       if (Date.now() < rateLimitCooldownRef.current) return;
-      fetchBootstrap();
+      fetchBootstrap({ forceFresh: true });
       lastRefreshTime = Date.now();
-    }, 45000);
+    }, 25000);
 
-    // Refresh immediately once when user focuses back on the tab (if more than 30s has elapsed)
+    // Refresh immediately when user focuses back on the tab (if more than 10 seconds have elapsed)
     const handleVisibilityChange = () => {
       if (typeof document !== 'undefined' && !document.hidden) {
-        if (Date.now() - lastRefreshTime > 30000 && Date.now() >= rateLimitCooldownRef.current) {
-          fetchBootstrap();
+        if (Date.now() - lastRefreshTime > 10000 && Date.now() >= rateLimitCooldownRef.current) {
+          fetchBootstrap({ forceFresh: true });
           lastRefreshTime = Date.now();
         }
       }
@@ -642,7 +758,7 @@ export default function App() {
     checkNewUserRegistrations();
     const interval = setInterval(() => {
       checkNewUserRegistrations();
-    }, 10000);
+    }, 240000); // 4 minutes
     return () => clearInterval(interval);
   }, [isUserAdmin]);
 
@@ -1521,7 +1637,25 @@ export default function App() {
       />
 
       {/* Main Tab Content View */}
-      <main className={`flex-1 min-h-0 relative ${activeTab === 'map' ? 'overflow-hidden pb-0' : 'overflow-y-auto overscroll-contain pb-28 sm:pb-20'}`}>
+      <main className={`flex-1 min-h-0 relative ${
+        activeTab === 'map'
+          ? 'overflow-hidden pb-0 bg-[#070A10]'
+          : activeTab === 'feed'
+          ? `overflow-y-auto overscroll-contain pb-28 sm:pb-20 ${
+              feedBgTheme === 'slate'
+                ? 'bg-[#1A263B]'
+                : feedBgTheme === 'charcoal'
+                ? 'bg-[#22304A]'
+                : feedBgTheme === 'graphite'
+                ? 'bg-[#2C3E5E]'
+                : feedBgTheme === 'soft'
+                ? 'bg-[#344668]'
+                : feedBgTheme === 'dark'
+                ? 'bg-[#070A10]'
+                : 'bg-[#FAF5E9]'
+            }`
+          : 'overflow-y-auto overscroll-contain pb-28 sm:pb-20 bg-[#070A10]'
+      }`}>
         {activeTab === 'dashboard' && (
           <MainDashboard
             reports={reports}

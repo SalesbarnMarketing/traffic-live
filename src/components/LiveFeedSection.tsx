@@ -55,9 +55,11 @@ import {
   Edit3,
   ThumbsUp,
   CircleDot,
-  HeartHandshake
+  HeartHandshake,
+  Sun
 } from 'lucide-react';
 import { FeedItem, AdvertisementBanner, RegisteredUser } from '../types';
+import { INITIAL_FEED_ITEMS } from '../data/initialData';
 import { FeedAdBanner } from './FeedAdBanner';
 import { ShareAppFeedCard } from './ShareAppFeedCard';
 import { TechrixFeedAdCard } from './TechrixFeedAdCard';
@@ -525,18 +527,75 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
     fetch(`/api/feed/${encodeURIComponent(itemId)}/view`, { method: 'POST' }).catch(() => {});
   }, []);
 
+type FeedBackgroundTheme = 'cream' | 'slate' | 'charcoal' | 'graphite' | 'soft' | 'dark';
+
+const FEED_THEME_CONFIG: Record<FeedBackgroundTheme, { bg: string; name: string; desc: string }> = {
+  cream: { 
+    bg: 'bg-[#FAF5E9]', 
+    name: 'Warm Cream (#FAF5E9)', 
+    desc: 'Light, clean warm almond cream canvas' 
+  },
+  slate: { 
+    bg: 'bg-[#1A263B]', 
+    name: 'Lighter Slate', 
+    desc: 'Clean, modern lighter slate surface' 
+  },
+  charcoal: { 
+    bg: 'bg-[#22304A]', 
+    name: 'Medium Charcoal', 
+    desc: 'Noticeably lighter & softer contrast' 
+  },
+  graphite: { 
+    bg: 'bg-[#2C3E5E]', 
+    name: 'Soft Graphite', 
+    desc: 'Lighter soft-graphite canvas' 
+  },
+  soft: {
+    bg: 'bg-[#344668]',
+    name: 'Gentle Cool Slate',
+    desc: 'Brightest soft contrast surface'
+  },
+  dark: { 
+    bg: 'bg-[#070A10]', 
+    name: 'Deep Midnight', 
+    desc: 'Original pitch-dark canvas' 
+  }
+};
+
   // Dropdown Open States
   const [isPostSelectionDropdownOpen, setIsPostSelectionDropdownOpen] = useState(false);
   const [isFontSizeDropdownOpen, setIsFontSizeDropdownOpen] = useState(false);
   const [isViewModeDropdownOpen, setIsViewModeDropdownOpen] = useState(false);
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
   const [isAdPlacementDropdownOpen, setIsAdPlacementDropdownOpen] = useState(false);
+  const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
+
+  // Background Lightness Theme State (Default to 'cream' - #FAF5E9)
+  const [feedBgTheme, setFeedBgTheme] = useState<FeedBackgroundTheme>(() => {
+    try {
+      const saved = localStorage.getItem('livetraffic_feed_bg_theme') as FeedBackgroundTheme;
+      if (saved && FEED_THEME_CONFIG[saved]) return saved;
+    } catch {}
+    return 'cream';
+  });
+
+  const isLightCanvas = feedBgTheme === 'cream';
 
   const postSelectionDropdownRef = useRef<HTMLDivElement>(null);
   const fontSizeDropdownRef = useRef<HTMLDivElement>(null);
   const viewModeDropdownRef = useRef<HTMLDivElement>(null);
   const regionDropdownRef = useRef<HTMLDivElement>(null);
   const adPlacementDropdownRef = useRef<HTMLDivElement>(null);
+  const themeDropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleSelectTheme = (theme: FeedBackgroundTheme) => {
+    setFeedBgTheme(theme);
+    setIsThemeDropdownOpen(false);
+    try {
+      localStorage.setItem('livetraffic_feed_bg_theme', theme);
+      window.dispatchEvent(new CustomEvent('livetraffic-feed-theme-changed', { detail: { theme } }));
+    } catch {}
+  };
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -555,6 +614,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
       }
       if (adPlacementDropdownRef.current && !adPlacementDropdownRef.current.contains(event.target as Node)) {
         setIsAdPlacementDropdownOpen(false);
+      }
+      if (themeDropdownRef.current && !themeDropdownRef.current.contains(event.target as Node)) {
+        setIsThemeDropdownOpen(false);
       }
     };
 
@@ -1245,7 +1307,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       fetchActiveAds();
-    }, 90000);
+    }, 240000); // 4 minutes
     return () => clearInterval(interval);
   }, []);
 
@@ -1615,13 +1677,26 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
     }
   };
 
-  // Feed Item Clearance & Status Helpers
+  // Feed Item Clearance & Status Helpers (Strict 2-Hour Auto-Clear Rule)
   const getItemStatus = (item: FeedItem): 'active' | 'cleared' => {
-    if (itemStatusOverrides[item.id]) {
-      return itemStatusOverrides[item.id];
-    }
+    // 1. Explicit cleared flags
     if (item.cleared === true || item.isCleared === true || item.status === 'cleared' || item.status === 'resolved') {
       return 'cleared';
+    }
+    // 2. Strict 2-Hour Auto-Clear Rule:
+    // Any incident older than 2 hours (or from yesterday) is automatically cleared
+    const time = getItemTimestampValue(item);
+    const now = Date.now();
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+    if (time > 0 && (now - time) > TWO_HOURS_MS) {
+      return 'cleared';
+    }
+    if ((item as any).isOlderData) {
+      return 'cleared';
+    }
+    // 3. User manual override if within 2-hour window
+    if (itemStatusOverrides[item.id]) {
+      return itemStatusOverrides[item.id];
     }
     return 'active';
   };
@@ -1725,7 +1800,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
     const iconSize = size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5';
 
     return (
-      <div className={`relative inline-block text-left shrink-0 ${isOpen ? 'z-30' : 'z-10'}`}>
+      <div className={`relative inline-block text-left shrink-0 ${isOpen ? 'z-50' : 'z-10'}`}>
         <button
           type="button"
           id={`feed-status-btn-${item.id}`}
@@ -1767,7 +1842,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
         {isOpen && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute left-0 top-full mt-1 w-44 bg-[#0F1115]/98 border border-slate-700/90 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+            className="absolute left-0 top-full mt-1 w-48 sm:w-44 bg-[#0F1115] border-2 border-slate-700/90 rounded-xl shadow-[0_12px_36px_rgba(0,0,0,0.85)] py-1 z-[100] animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md ring-1 ring-amber-500/30"
           >
             <div className="px-3 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex items-center justify-between">
               <span>Incident Status</span>
@@ -2273,26 +2348,37 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
     return 0;
   };
 
-  // Active items within dynamic live feed time frame (Old posts outside the 6-hour window are dropped)
+  // Active items within dynamic live feed time frame (Strict 2-hour operational window)
   const feedItemsInLiveWindow = React.useMemo(() => {
-    return filterFeedItemsInLiveWindow(feedItems, 6);
+    return filterFeedItemsInLiveWindow(feedItems, 2);
   }, [feedItems]);
 
   const liveFeedWindowInfo = React.useMemo(() => {
-    return getLiveFeedWindowBounds(feedItems, 6);
+    return getLiveFeedWindowBounds(feedItems, 2);
   }, [feedItems]);
 
   // 1. All live items inside the active 6-hr live window, strictly deduplicated by id (excluding legacy Google scan items)
+  // Fallback: If live window has no items, seamlessly use older data so the feed is never empty!
   const liveItems = React.useMemo(() => {
     const seen = new Set<string>();
-    return feedItemsInLiveWindow.filter(item => {
+    const res = feedItemsInLiveWindow.filter(item => {
       if (!item || !item.id) return false;
       if (seen.has(item.id)) return false;
       if (isGoogleMapsScanItem(item)) return false;
       seen.add(item.id);
       return true;
     });
-  }, [feedItemsInLiveWindow]);
+    if (res.length === 0 && feedItems.length > 0) {
+      return feedItems.filter(item => {
+        if (!item || !item.id) return false;
+        if (seen.has(item.id)) return false;
+        if (isGoogleMapsScanItem(item)) return false;
+        seen.add(item.id);
+        return true;
+      });
+    }
+    return res;
+  }, [feedItemsInLiveWindow, feedItems]);
 
   // Category counts across active live feed items inside the live feed window
   const categoryCounts = React.useMemo(() => {
@@ -2396,123 +2482,155 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
     return counts;
   }, [liveItems]);
 
-  // Filtered Main Feed & City Items (Sorted dynamically by date & time)
+  // Filtered Main Feed & City Items (Sorted dynamically by date & time, with older data fallback so feed is NEVER empty)
   const filteredITrafficItems = React.useMemo(() => {
-    return liveItems
-      .filter(item => {
-        // 1. City & Provincial Quick Filter (All 9 Provinces + Metros + Custom Areas)
-        if (typeof cityFilter === 'string' && cityFilter.startsWith('custom:')) {
-          const customQuery = cityFilter.replace('custom:', '').toLowerCase().trim();
-          const itemText = `${item.location || ''} ${item.roadwayName || ''} ${item.content || ''} ${item.author || ''}`.toLowerCase();
-          if (!itemText.includes(customQuery)) return false;
-        } else if (cityFilter === 'pretoria') {
-          if (!isPretoriaItem(item)) return false;
-        } else if (cityFilter === 'johannesburg') {
-          if (!isJohannesburgItem(item)) return false;
-        } else if (cityFilter === 'gauteng') {
-          if (!isGautengItem(item)) return false;
-        } else if (cityFilter === 'kzn') {
-          if (!isKZNItem(item)) return false;
-        } else if (cityFilter === 'wc') {
-          if (!isWesternCapeItem(item)) return false;
-        } else if (cityFilter === 'ec') {
-          if (!isEasternCapeItem(item)) return false;
-        } else if (cityFilter === 'fs') {
-          if (!isFreeStateItem(item)) return false;
-        } else if (cityFilter === 'mp') {
-          if (!isMpumalangaItem(item)) return false;
-        } else if (cityFilter === 'lp') {
-          if (!isLimpopoItem(item)) return false;
-        } else if (cityFilter === 'nw') {
-          if (!isNorthWestItem(item)) return false;
-        } else if (cityFilter === 'nc') {
-          if (!isNorthernCapeItem(item)) return false;
-        }
+    const filterItemMatch = (item: FeedItem) => {
+      // 1. City & Provincial Quick Filter (All 9 Provinces + Metros + Custom Areas)
+      if (typeof cityFilter === 'string' && cityFilter.startsWith('custom:')) {
+        const customQuery = cityFilter.replace('custom:', '').toLowerCase().trim();
+        const itemText = `${item.location || ''} ${item.roadwayName || ''} ${item.content || ''} ${item.author || ''}`.toLowerCase();
+        if (!itemText.includes(customQuery)) return false;
+      } else if (cityFilter === 'pretoria') {
+        if (!isPretoriaItem(item)) return false;
+      } else if (cityFilter === 'johannesburg') {
+        if (!isJohannesburgItem(item)) return false;
+      } else if (cityFilter === 'gauteng') {
+        if (!isGautengItem(item)) return false;
+      } else if (cityFilter === 'kzn') {
+        if (!isKZNItem(item)) return false;
+      } else if (cityFilter === 'wc') {
+        if (!isWesternCapeItem(item)) return false;
+      } else if (cityFilter === 'ec') {
+        if (!isEasternCapeItem(item)) return false;
+      } else if (cityFilter === 'fs') {
+        if (!isFreeStateItem(item)) return false;
+      } else if (cityFilter === 'mp') {
+        if (!isMpumalangaItem(item)) return false;
+      } else if (cityFilter === 'lp') {
+        if (!isLimpopoItem(item)) return false;
+      } else if (cityFilter === 'nw') {
+        if (!isNorthWestItem(item)) return false;
+      } else if (cityFilter === 'nc') {
+        if (!isNorthernCapeItem(item)) return false;
+      }
 
-        // 3. Feed Category Filter (All / Admin / Crashes / Spiking / Highway Feeds / Community / Potholes / GBV)
-        if (feedCategoryFilter !== 'all') {
-          const isGbv = item.category === 'gbv' || item.category === 'gbv_assist' || item.eventSubType?.toLowerCase().includes('gbv') || item.content?.toLowerCase().includes('gbv') || item.author?.toLowerCase().includes('gbv');
-          if (feedCategoryFilter === 'gbv') {
-            if (!isGbv) return false;
-          } else if (feedCategoryFilter === 'admin') {
-            if (!isItemAdminPost(item)) return false;
-          } else if (feedCategoryFilter === 'crashes') {
-            const isCrash = !isGbv && (item.category === 'crash' || item.category === ('accident' as any) || item.eventSubType?.toLowerCase().includes('crash') || item.eventSubType?.toLowerCase().includes('accident') || item.content.toLowerCase().includes('crash'));
-            if (!isCrash) return false;
-          } else if (feedCategoryFilter === 'spiking') {
-            const isSpike = !isGbv && (item.category === 'spiking' || item.eventSubType?.toLowerCase().includes('spiking') || item.content.toLowerCase().includes('spiking') || item.content.toLowerCase().includes('spike trap') || item.content.toLowerCase().includes('tyre trap'));
-            if (!isSpike) return false;
-          } else if (feedCategoryFilter === 'potholes') {
-            const isPothole = !isGbv && (item.category === 'pothole' || item.eventSubType?.toLowerCase().includes('pothole') || item.content.toLowerCase().includes('pothole'));
-            if (!isPothole) return false;
-          } else if (feedCategoryFilter === 'itraffic') {
-            const isHighway = isITrafficItem(item);
-            if (!isHighway) return false;
-          } else if (feedCategoryFilter === 'community') {
-            const isCommunity = (item.source === 'community' || !item.source) && !isItemAdminPost(item);
-            if (!isCommunity) return false;
+      // 2. Feed Category Filter (All / Admin / Crashes / Spiking / Highway Feeds / Community / Potholes / GBV)
+      if (feedCategoryFilter !== 'all') {
+        const isGbv = item.category === 'gbv' || item.category === 'gbv_assist' || item.eventSubType?.toLowerCase().includes('gbv') || item.content?.toLowerCase().includes('gbv') || item.author?.toLowerCase().includes('gbv');
+        if (feedCategoryFilter === 'gbv') {
+          if (!isGbv) return false;
+        } else if (feedCategoryFilter === 'admin') {
+          if (!isItemAdminPost(item)) return false;
+        } else if (feedCategoryFilter === 'crashes') {
+          const isCrash = !isGbv && (item.category === 'crash' || item.category === ('accident' as any) || item.eventSubType?.toLowerCase().includes('crash') || item.eventSubType?.toLowerCase().includes('accident') || item.content.toLowerCase().includes('crash'));
+          if (!isCrash) return false;
+        } else if (feedCategoryFilter === 'spiking') {
+          const isSpike = !isGbv && (item.category === 'spiking' || item.eventSubType?.toLowerCase().includes('spiking') || item.content.toLowerCase().includes('spiking') || item.content.toLowerCase().includes('spike trap') || item.content.toLowerCase().includes('tyre trap'));
+          if (!isSpike) return false;
+        } else if (feedCategoryFilter === 'potholes') {
+          const isPothole = !isGbv && (item.category === 'pothole' || item.eventSubType?.toLowerCase().includes('pothole') || item.content.toLowerCase().includes('pothole'));
+          if (!isPothole) return false;
+        } else if (feedCategoryFilter === 'itraffic') {
+          const isHighway = isITrafficItem(item);
+          if (!isHighway) return false;
+        } else if (feedCategoryFilter === 'community') {
+          const isCommunity = (item.source === 'community' || !item.source) && !isItemAdminPost(item);
+          if (!isCommunity) return false;
+        }
+      }
+
+      // Region Filter (Handles multi-selected regions and single region filter)
+      if (selectedRegions.length > 0 && !selectedRegions.includes('all')) {
+        const itemRegion = resolveItemRegion(item);
+        if (!selectedRegions.includes(itemRegion)) return false;
+      } else if (regionFilter !== 'all') {
+        const itemRegion = resolveItemRegion(item);
+        if (itemRegion !== regionFilter) return false;
+      }
+
+      // Corridor Filter
+      if (corridorFilter !== 'all') {
+        const matchCorridor = 
+          (item.roadwayName && item.roadwayName.toLowerCase().includes(corridorFilter.toLowerCase())) ||
+          (item.location && item.location.toLowerCase().includes(corridorFilter.toLowerCase())) ||
+          (item.content && item.content.toLowerCase().includes(corridorFilter.toLowerCase()));
+        if (!matchCorridor) return false;
+      }
+
+      // Event Type Filter
+      if (eventTypeFilter !== 'all') {
+        if (eventTypeFilter === 'crash') {
+          const isCrash = item.category === 'crash' || item.category === ('accident' as any) || item.eventSubType?.toLowerCase().includes('crash') || item.eventSubType?.toLowerCase().includes('accident') || item.content.toLowerCase().includes('crash');
+          if (!isCrash) return false;
+        } else if (eventTypeFilter === 'roadworks') {
+          const isRoadworks = item.category === 'roadworks' || item.eventSubType?.toLowerCase().includes('roadwork') || item.content.toLowerCase().includes('roadwork') || item.content.toLowerCase().includes('maintenance');
+          if (!isRoadworks) return false;
+        } else if (eventTypeFilter === 'stationary') {
+          const isStationary = item.category === 'stationary' || item.category === 'hazard' || item.category === 'spiking' || item.category === 'pothole' || item.eventSubType?.toLowerCase().includes('stationary') || item.eventSubType?.toLowerCase().includes('hazard') || item.eventSubType?.toLowerCase().includes('spiking') || item.eventSubType?.toLowerCase().includes('pothole') || item.content.toLowerCase().includes('hazard') || item.content.toLowerCase().includes('obstruction') || item.content.toLowerCase().includes('spiking') || item.content.toLowerCase().includes('pothole');
+          if (!isStationary) return false;
+        } else if (eventTypeFilter === 'congestion') {
+          const isCongestion = item.category === 'congestion' || item.category === 'traffic' || item.eventSubType?.toLowerCase().includes('congestion') || item.content.toLowerCase().includes('congestion') || item.content.toLowerCase().includes('queue') || item.content.toLowerCase().includes('delay');
+          if (!isCongestion) return false;
+        }
+      }
+
+      // Search Query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchSearch = 
+          (item.roadwayName && item.roadwayName.toLowerCase().includes(query)) ||
+          (item.location && item.location.toLowerCase().includes(query)) ||
+          (item.content && item.content.toLowerCase().includes(query)) ||
+          (item.direction && item.direction.toLowerCase().includes(query)) ||
+          (item.author && item.author.toLowerCase().includes(query)) ||
+          (item.eventSubType && item.eventSubType.toLowerCase().includes(query));
+        if (!matchSearch) return false;
+      }
+
+      return true;
+    };
+
+    let matched = liveItems.filter(filterItemMatch);
+
+    // "Do not let the feed be empty, use older data":
+    if (matched.length === 0 && feedItems.length > 0) {
+      // 1. Check all feed items (including older data) with current filter
+      const olderFiltered = feedItems.filter(filterItemMatch);
+      if (olderFiltered.length > 0) {
+        matched = olderFiltered;
+      } else {
+        // 2. Fall back to older items within the requested region
+        const regionalOlder = feedItems.filter(item => {
+          if (selectedRegions.length > 0 && !selectedRegions.includes('all')) {
+            return selectedRegions.includes(resolveItemRegion(item));
           }
-        }
-
-        // Region Filter (Handles multi-selected regions and single region filter)
-        if (selectedRegions.length > 0 && !selectedRegions.includes('all')) {
-          const itemRegion = resolveItemRegion(item);
-          if (!selectedRegions.includes(itemRegion)) return false;
-        } else if (regionFilter !== 'all') {
-          const itemRegion = resolveItemRegion(item);
-          if (itemRegion !== regionFilter) return false;
-        }
-
-        // Corridor Filter
-        if (corridorFilter !== 'all') {
-          const matchCorridor = 
-            (item.roadwayName && item.roadwayName.toLowerCase().includes(corridorFilter.toLowerCase())) ||
-            (item.location && item.location.toLowerCase().includes(corridorFilter.toLowerCase())) ||
-            (item.content && item.content.toLowerCase().includes(corridorFilter.toLowerCase()));
-          if (!matchCorridor) return false;
-        }
-
-        // Event Type Filter
-        if (eventTypeFilter !== 'all') {
-          if (eventTypeFilter === 'crash') {
-            const isCrash = item.category === 'crash' || item.category === ('accident' as any) || item.eventSubType?.toLowerCase().includes('crash') || item.eventSubType?.toLowerCase().includes('accident') || item.content.toLowerCase().includes('crash');
-            if (!isCrash) return false;
-          } else if (eventTypeFilter === 'roadworks') {
-            const isRoadworks = item.category === 'roadworks' || item.eventSubType?.toLowerCase().includes('roadwork') || item.content.toLowerCase().includes('roadwork') || item.content.toLowerCase().includes('maintenance');
-            if (!isRoadworks) return false;
-          } else if (eventTypeFilter === 'stationary') {
-            const isStationary = item.category === 'stationary' || item.category === 'hazard' || item.category === 'spiking' || item.category === 'pothole' || item.eventSubType?.toLowerCase().includes('stationary') || item.eventSubType?.toLowerCase().includes('hazard') || item.eventSubType?.toLowerCase().includes('spiking') || item.eventSubType?.toLowerCase().includes('pothole') || item.content.toLowerCase().includes('hazard') || item.content.toLowerCase().includes('obstruction') || item.content.toLowerCase().includes('spiking') || item.content.toLowerCase().includes('pothole');
-            if (!isStationary) return false;
-          } else if (eventTypeFilter === 'congestion') {
-            const isCongestion = item.category === 'congestion' || item.category === 'traffic' || item.eventSubType?.toLowerCase().includes('congestion') || item.content.toLowerCase().includes('congestion') || item.content.toLowerCase().includes('queue') || item.content.toLowerCase().includes('delay');
-            if (!isCongestion) return false;
+          if (regionFilter !== 'all') {
+            return resolveItemRegion(item) === regionFilter;
           }
+          return true;
+        });
+        if (regionalOlder.length > 0) {
+          matched = regionalOlder;
+        } else {
+          // 3. Fall back to all available older items
+          matched = feedItems.slice(0, 25);
         }
+      }
+    }
 
-        // Search Query
-        if (searchQuery.trim()) {
-          const query = searchQuery.toLowerCase();
-          const matchSearch = 
-            (item.roadwayName && item.roadwayName.toLowerCase().includes(query)) ||
-            (item.location && item.location.toLowerCase().includes(query)) ||
-            (item.content && item.content.toLowerCase().includes(query)) ||
-            (item.direction && item.direction.toLowerCase().includes(query)) ||
-            (item.author && item.author.toLowerCase().includes(query)) ||
-            (item.eventSubType && item.eventSubType.toLowerCase().includes(query));
-          if (!matchSearch) return false;
-        }
+    // Ultimate fallback: Never let feed be empty, use older data
+    if (matched.length === 0) {
+      matched = (INITIAL_FEED_ITEMS as FeedItem[]).slice(0, 25);
+    }
 
+    const seen = new Set<string>();
+    return matched
+      .filter((item: FeedItem) => {
+        if (!item || !item.id) return false;
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
         return true;
       })
-      .filter((() => {
-        const seen = new Set<string>();
-        return (item: FeedItem) => {
-          if (!item || !item.id) return false;
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        };
-      })())
       .sort((a, b) => {
         // Highlighted post for area must be first post
         const aHigh = Boolean(a.highlightGold);
@@ -2525,12 +2643,16 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
         const diff = timeB - timeA;
         return sortOrder === 'newest' ? diff : -diff;
       });
-  }, [liveItems, cityFilter, selectedRegions, regionFilter, corridorFilter, eventTypeFilter, searchQuery, sortOrder]);
+  }, [liveItems, feedItems, cityFilter, selectedRegions, regionFilter, corridorFilter, eventTypeFilter, searchQuery, sortOrder]);
 
-  // Admin Posts list (within Live Feed Window)
+  // Admin Posts list (within Live Feed Window, with older data fallback)
   const adminPostItems = React.useMemo(() => {
-    return feedItemsInLiveWindow.filter(isItemAdminPost);
-  }, [feedItemsInLiveWindow]);
+    const fresh = feedItemsInLiveWindow.filter(isItemAdminPost);
+    if (fresh.length === 0 && feedItems.length > 0) {
+      return feedItems.filter(isItemAdminPost);
+    }
+    return fresh;
+  }, [feedItemsInLiveWindow, feedItems]);
 
   const filteredAdminItems = React.useMemo(() => {
     return adminPostItems
@@ -2598,56 +2720,75 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
       });
   }, [adminPostItems, cityFilter, selectedRegions, regionFilter, searchQuery, sortOrder]);
 
-  // Filtered Community & Admin Dispatches (Sorted strictly dynamically by sortOrder / date within Live Feed Window)
+  // Filtered Community & Admin Dispatches (Sorted strictly dynamically by sortOrder / date, with older data fallback)
   const filteredDispatches = React.useMemo(() => {
-    const seen = new Set<string>();
-    return liveItems
-      .filter(item => item.source !== 'itraffic')
-      .filter(item => {
-        if (!item || !item.id) return false;
-        if (seen.has(item.id)) return false;
-        seen.add(item.id);
-        return true;
-      })
-      .filter(item => {
-        if (dispatchFilter === 'admin_dispatch') {
-          return isItemAdminPost(item);
-        }
-        if (dispatchFilter === 'community') {
-          return !isItemAdminPost(item);
-        }
-        if (dispatchFilter === 'potholes') {
-          return item.category === 'pothole' || item.content.toLowerCase().includes('pothole') || (item.author && item.author.toLowerCase().includes('pothole'));
-        }
-        if (dispatchFilter === 'sos') {
-          return item.category === 'spiking' || item.content.toLowerCase().includes('sos') || item.content.toLowerCase().includes('emergency');
-        }
-        return true;
-      })
-      .filter(item => {
-        // Region Filter for dispatches
-        if (selectedRegions.length > 0 && !selectedRegions.includes('all')) {
-          const itemRegion = resolveItemRegion(item);
-          if (!selectedRegions.includes(itemRegion)) return false;
-        } else if (regionFilter !== 'all') {
-          const itemRegion = resolveItemRegion(item);
-          if (itemRegion !== regionFilter) return false;
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        // Highlighted post for area must be first post
-        const aHigh = Boolean(a.highlightGold);
-        const bHigh = Boolean(b.highlightGold);
-        if (aHigh && !bHigh) return -1;
-        if (!aHigh && bHigh) return 1;
+    const filterDispatchList = (list: FeedItem[]) => {
+      const seen = new Set<string>();
+      return list
+        .filter(item => item.source !== 'itraffic')
+        .filter(item => {
+          if (!item || !item.id) return false;
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        })
+        .filter(item => {
+          if (dispatchFilter === 'admin_dispatch') {
+            return isItemAdminPost(item);
+          }
+          if (dispatchFilter === 'community') {
+            return !isItemAdminPost(item);
+          }
+          if (dispatchFilter === 'potholes') {
+            return item.category === 'pothole' || item.content.toLowerCase().includes('pothole') || (item.author && item.author.toLowerCase().includes('pothole'));
+          }
+          if (dispatchFilter === 'sos') {
+            return item.category === 'spiking' || item.content.toLowerCase().includes('sos') || item.content.toLowerCase().includes('emergency');
+          }
+          return true;
+        })
+        .filter(item => {
+          // Region Filter for dispatches
+          if (selectedRegions.length > 0 && !selectedRegions.includes('all')) {
+            const itemRegion = resolveItemRegion(item);
+            if (!selectedRegions.includes(itemRegion)) return false;
+          } else if (regionFilter !== 'all') {
+            const itemRegion = resolveItemRegion(item);
+            if (itemRegion !== regionFilter) return false;
+          }
+          return true;
+        });
+    };
 
-        const timeA = getItemTimestampValue(a);
-        const timeB = getItemTimestampValue(b);
-        const diff = timeB - timeA;
-        return sortOrder === 'newest' ? diff : -diff;
-      });
-  }, [liveItems, dispatchFilter, selectedRegions, regionFilter, sortOrder]);
+    let result = filterDispatchList(liveItems);
+
+    // "Do not let the feed be empty, use older data":
+    if (result.length === 0 && feedItems.length > 0) {
+      const fromAll = filterDispatchList(feedItems);
+      if (fromAll.length > 0) {
+        result = fromAll;
+      } else {
+        result = feedItems.filter(item => item.source !== 'itraffic').slice(0, 15);
+      }
+    }
+
+    if (result.length === 0) {
+      result = (INITIAL_FEED_ITEMS as FeedItem[]).filter(item => item.source !== 'itraffic').slice(0, 15);
+    }
+
+    return result.sort((a, b) => {
+      // Highlighted post for area must be first post
+      const aHigh = Boolean(a.highlightGold);
+      const bHigh = Boolean(b.highlightGold);
+      if (aHigh && !bHigh) return -1;
+      if (!aHigh && bHigh) return 1;
+
+      const timeA = getItemTimestampValue(a);
+      const timeB = getItemTimestampValue(b);
+      const diff = timeB - timeA;
+      return sortOrder === 'newest' ? diff : -diff;
+    });
+  }, [liveItems, feedItems, dispatchFilter, selectedRegions, regionFilter, sortOrder]);
 
   const corridorPills = React.useMemo(() => {
     if (selectedRegions.length === 1 && selectedRegions[0] !== 'all') {
@@ -2772,11 +2913,15 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
       >
         <div className="flex items-center justify-between px-1 text-xs">
           <div className="flex items-center space-x-1.5 min-w-0">
-            <span className="inline-flex items-center space-x-1 text-[10px] font-black uppercase tracking-wider text-amber-400/90 bg-amber-950/40 border border-amber-500/25 px-2 py-0.5 rounded shrink-0">
-              <Megaphone className="w-3 h-3 text-amber-400" />
-              <span>Partner Ad</span>
+            <span className={`inline-flex items-center space-x-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shrink-0 shadow-sm ${
+              isLightCanvas
+                ? 'text-black bg-amber-400/40 border border-amber-600/50'
+                : 'text-amber-400/90 bg-amber-950/40 border border-amber-500/25'
+            }`}>
+              <Megaphone className={`w-3 h-3 ${isLightCanvas ? 'text-black' : 'text-amber-400'}`} />
+              <span className={isLightCanvas ? 'text-black font-black' : ''}>Partner Ad</span>
             </span>
-            <span className="text-[10px] text-amber-300/80 font-mono hidden xs:inline">
+            <span className={`text-[10px] font-mono hidden xs:inline ${isLightCanvas ? 'text-slate-900 font-bold' : 'text-amber-300/80'}`}>
               {feedAdPlacement === 'random' ? '🎲 Random In-Feed' : feedAdPlacement === 'mid' ? '📍 Mid-Feed' : '🌟 In-Feed'}
             </span>
           </div>
@@ -2788,10 +2933,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                 if (onNavigateToAdvertiser) onNavigateToAdvertiser();
                 else if (onSwitchTab) onSwitchTab('advertiser');
               }}
-              className="inline-flex items-center space-x-1 text-amber-400 hover:text-amber-300 font-bold text-xs hover:underline transition shrink-0 cursor-pointer group py-0.5"
+              className={`inline-flex items-center space-x-1 font-black text-xs hover:underline transition shrink-0 cursor-pointer group py-0.5 ${
+                isLightCanvas ? 'text-black hover:text-slate-800' : 'text-amber-400 hover:text-amber-300'
+              }`}
             >
-              <span>Advertising Page</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              <span className={isLightCanvas ? 'text-black font-black' : ''}>Advertising Page</span>
+              <ArrowRight className={`w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform ${isLightCanvas ? 'text-black' : ''}`} />
             </button>
           </div>
         </div>
@@ -2827,9 +2974,13 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
       <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2">
         <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-xs">
           <div className="flex items-center space-x-1.5 min-w-0">
-            <span className="inline-flex items-center space-x-1 text-[10px] font-black uppercase tracking-wider text-amber-400/90 bg-amber-950/40 border border-amber-500/25 px-2 py-0.5 rounded shrink-0">
-              <Megaphone className="w-3 h-3 text-amber-400" />
-              <span>Partner Ad (Bottom Placement)</span>
+            <span className={`inline-flex items-center space-x-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shrink-0 shadow-sm ${
+              isLightCanvas
+                ? 'text-black bg-amber-400/40 border border-amber-600/50'
+                : 'text-amber-400/90 bg-amber-950/40 border border-amber-500/25'
+            }`}>
+              <Megaphone className={`w-3 h-3 ${isLightCanvas ? 'text-black' : 'text-amber-400'}`} />
+              <span className={isLightCanvas ? 'text-black font-black' : ''}>Partner Ad (Bottom Placement)</span>
             </span>
           </div>
 
@@ -2839,10 +2990,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
               if (onNavigateToAdvertiser) onNavigateToAdvertiser();
               else if (onSwitchTab) onSwitchTab('advertiser');
             }}
-            className="inline-flex items-center space-x-1.5 text-amber-400 hover:text-amber-300 font-bold text-xs hover:underline transition shrink-0 cursor-pointer group py-0.5"
+            className={`inline-flex items-center space-x-1.5 font-black text-xs hover:underline transition shrink-0 cursor-pointer group py-0.5 ${
+              isLightCanvas ? 'text-black hover:text-slate-800' : 'text-amber-400 hover:text-amber-300'
+            }`}
           >
-            <span>Advertising Page</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            <span className={isLightCanvas ? 'text-black font-black' : ''}>Advertising Page</span>
+            <ArrowRight className={`w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform ${isLightCanvas ? 'text-black' : ''}`} />
           </button>
         </div>
 
@@ -2921,11 +3074,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
   const activeFilterCount = (searchQuery.trim() ? 1 : 0) + (isAnyRegionFilterActive ? 1 : 0) + (corridorFilter !== 'all' ? 1 : 0) + (eventTypeFilter !== 'all' ? 1 : 0) + (activeTab === 'dispatches' && dispatchFilter !== 'all' ? 1 : 0);
 
   return (
-    <div id="live-feed-section-container" className={`transition-all duration-200 ${
-        isFullscreen
-          ? 'fixed inset-0 z-[100] w-screen h-screen overflow-y-auto bg-[#07090E] p-3 sm:p-6 space-y-3 pb-32 max-w-none'
-          : 'max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 space-y-3 pb-36 sm:pb-28'
-      }`} ref={feedContainerRef}>
+    <div className={`w-full min-h-full transition-colors duration-200 ${FEED_THEME_CONFIG[feedBgTheme]?.bg || 'bg-[#FAF5E9]'}`}>
+      <div id="live-feed-section-container" className={`transition-all duration-200 ${
+          isFullscreen
+            ? `fixed inset-0 z-[100] w-screen h-screen overflow-y-auto ${FEED_THEME_CONFIG[feedBgTheme]?.bg || 'bg-[#FAF5E9]'} p-3 sm:p-6 space-y-3 pb-32 max-w-none`
+            : 'max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 space-y-3 pb-36 sm:pb-28'
+        }`} ref={feedContainerRef}>
       {/* Full Screen Active Notification Bar with Quick Exit (Shown only in Fullscreen Mode) */}
       {isFullscreen && (
         <div className="sticky top-2 z-[120] flex items-center justify-between bg-slate-950/95 backdrop-blur-md border-2 border-amber-500/80 rounded-2xl px-3.5 sm:px-5 py-2.5 shadow-2xl animate-fadeIn">
@@ -3083,11 +3237,15 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
           {/* Direct Link Above Advert to the Advertising Page */}
           <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-xs">
             <div className="flex items-center space-x-1.5 min-w-0">
-              <span className="inline-flex items-center space-x-1 text-[10px] font-black uppercase tracking-wider text-amber-400/90 bg-amber-950/40 border border-amber-500/25 px-2 py-0.5 rounded shrink-0">
-                <Megaphone className="w-3 h-3 text-amber-400" />
-                <span>Partner Ad Space</span>
+              <span className={`inline-flex items-center space-x-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded shrink-0 shadow-sm ${
+                isLightCanvas
+                  ? 'text-black bg-amber-400/40 border border-amber-600/50'
+                  : 'text-amber-400/90 bg-amber-950/40 border border-amber-500/25'
+              }`}>
+                <Megaphone className={`w-3 h-3 ${isLightCanvas ? 'text-black' : 'text-amber-400'}`} />
+                <span className={isLightCanvas ? 'text-black font-black' : ''}>Partner Ad</span>
               </span>
-              <span className="text-slate-400 text-xs truncate hidden sm:inline">
+              <span className={`text-xs truncate hidden sm:inline ${isLightCanvas ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
                 Promote your brand to thousands of South African motorists daily
               </span>
             </div>
@@ -3098,10 +3256,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                 if (onNavigateToAdvertiser) onNavigateToAdvertiser();
                 else if (onSwitchTab) onSwitchTab('advertiser');
               }}
-              className="inline-flex items-center space-x-1.5 text-amber-400 hover:text-amber-300 font-bold text-xs hover:underline transition shrink-0 cursor-pointer group py-0.5"
+              className={`inline-flex items-center space-x-1.5 font-black text-xs hover:underline transition shrink-0 cursor-pointer group py-0.5 ${
+                isLightCanvas ? 'text-black hover:text-slate-800' : 'text-amber-400 hover:text-amber-300'
+              }`}
             >
-              <span>Advertising Page</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              <span className={isLightCanvas ? 'text-black font-black' : ''}>Advertising Page</span>
+              <ArrowRight className={`w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform ${isLightCanvas ? 'text-black' : ''}`} />
             </button>
           </div>
 
@@ -3672,10 +3832,10 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                     setIsFontSizeDropdownOpen(false);
                     setIsViewModeDropdownOpen(false);
                   }}
-                  className={`w-full sm:w-auto justify-between sm:justify-start bg-[#050608] hover:bg-slate-800 border px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 sm:space-x-2 cursor-pointer shadow-sm active:scale-95 ${
+                  className={`w-full sm:w-auto justify-between sm:justify-start border px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 sm:space-x-2 cursor-pointer shadow-sm active:scale-95 ${
                     !selectedRegions.includes('all') && selectedRegions.length > 0
-                      ? 'text-cyan-300 border-cyan-500/60 bg-cyan-950/40 ring-1 ring-cyan-500/30'
-                      : 'text-slate-300 hover:text-white border-slate-800 hover:border-slate-700'
+                      ? 'bg-[#05080E] text-cyan-300 border-2 border-cyan-500 shadow-md ring-1 ring-cyan-500/30'
+                      : 'bg-[#050608] hover:bg-slate-800 text-slate-300 hover:text-white border-slate-800 hover:border-slate-700'
                   }`}
                   title="Select Location / Province"
                   aria-label="Select Location / Province"
@@ -3955,10 +4115,10 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                         setIsViewModeDropdownOpen(false);
                         setIsRegionDropdownOpen(false);
                       }}
-                      className={`w-full sm:w-auto justify-between sm:justify-start bg-[#050608] hover:bg-slate-800 border px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 sm:space-x-2 cursor-pointer shadow-sm active:scale-95 ${
+                      className={`w-full sm:w-auto justify-between sm:justify-start border px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 sm:space-x-2 cursor-pointer shadow-sm active:scale-95 ${
                         feedCategoryFilter !== 'all'
-                          ? 'text-cyan-300 border-cyan-500/60 bg-cyan-950/40 ring-1 ring-cyan-500/30'
-                          : 'text-slate-300 hover:text-white border-slate-800 hover:border-slate-700'
+                          ? 'bg-[#05080E] text-cyan-300 border-2 border-cyan-500 shadow-md ring-1 ring-cyan-500/30'
+                          : 'bg-[#050608] hover:bg-slate-800 text-slate-300 hover:text-white border-slate-800 hover:border-slate-700'
                       }`}
                       title={`Filter feed: ${activePostCategory.label}`}
                       aria-label={`Select post category (Current: ${activePostCategory.label})`}
@@ -4276,6 +4436,66 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
               <ArrowUpDown className="w-3.5 h-3.5 text-cyan-400" />
             </button>
 
+            {/* Background Lightness Theme Selector */}
+            <div className="relative" ref={themeDropdownRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsThemeDropdownOpen(prev => !prev);
+                  setIsViewModeDropdownOpen(false);
+                  setIsRegionDropdownOpen(false);
+                  setIsPostSelectionDropdownOpen(false);
+                  setIsFontSizeDropdownOpen(false);
+                }}
+                className="bg-[#050608] hover:bg-slate-800 text-amber-300 border border-slate-800 hover:border-amber-500/50 p-1.5 sm:px-2 sm:py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer shadow-sm active:scale-95 shrink-0"
+                title={`Feed Background Lightness: ${FEED_THEME_CONFIG[feedBgTheme].name} (Click to change)`}
+                aria-label="Feed Background Lightness"
+              >
+                <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="hidden sm:inline text-[11px] font-bold text-slate-200">
+                  {feedBgTheme === 'cream' ? 'Cream' : FEED_THEME_CONFIG[feedBgTheme]?.name?.split(' ')[0] || 'Cream'}
+                </span>
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isThemeDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isThemeDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-56 max-w-[calc(100vw-2rem)] bg-[#0F1626] border-2 border-amber-500/60 rounded-2xl shadow-2xl z-50 py-1 overflow-hidden animate-fadeIn divide-y divide-slate-800/80 backdrop-blur-xl">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-[#070B14]">
+                    Feed Background
+                  </div>
+                  <div className="py-1">
+                    {(Object.keys(FEED_THEME_CONFIG) as FeedBackgroundTheme[]).map((themeKey) => {
+                      const cfg = FEED_THEME_CONFIG[themeKey];
+                      const isSelected = feedBgTheme === themeKey;
+                      return (
+                        <button
+                          key={themeKey}
+                          type="button"
+                          onClick={() => handleSelectTheme(themeKey)}
+                          className={`w-full px-3 py-2 text-left text-xs font-bold flex items-center justify-between transition cursor-pointer hover:bg-slate-800/70 ${
+                            isSelected ? 'text-amber-300 bg-amber-500/10' : 'text-slate-300'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center space-x-1.5">
+                              <span>{cfg.name}</span>
+                              {themeKey === 'cream' && (
+                                <span className="bg-amber-400 text-slate-950 text-[8px] font-black px-1 py-0.2 rounded uppercase">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-normal">{cfg.desc}</p>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-2" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Full Screen Feed Mode Toggle */}
             <button
               type="button"
@@ -4357,9 +4577,10 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
 
                   const isNew = newlyAddedItemIds.has(item.id);
                   const isUserPost = !isGbv && (Boolean((item as any).isUserPost) || isItemUserPost(item) || isItemUnverifiedUserPost(item) || item.source === 'community' || item.source === 'user');
+                  const isStatusDropdownOpen = openStatusDropdownId === item.id;
                   const elements = [
-                    <div key={item.id} className={`space-y-2.5 ${isNew ? 'animate-feed-fade-in' : ''}`}>
-                      <div className={`border rounded-xl p-3.5 sm:p-4 shadow-sm transition-all duration-500 space-y-1.5 ${
+                    <div key={item.id} className={`space-y-2.5 ${isNew ? 'animate-feed-fade-in' : ''} ${isStatusDropdownOpen ? 'relative z-50' : 'relative z-0'}`}>
+                      <div className={`border rounded-xl p-3.5 sm:p-4 shadow-sm transition-all duration-500 space-y-1.5 ${isStatusDropdownOpen ? 'relative z-50' : ''} ${
                         isNew
                           ? 'animate-new-feed-highlight'
                           : highlightedItemId === item.id
@@ -4552,9 +4773,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                         })()}
 
                         {/* Action buttons */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 w-full min-w-0 pt-1.5 border-t border-slate-800/60">
+                        <div className={`flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 w-full min-w-0 pt-1.5 border-t border-slate-800/60 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                           {/* Line 1 on mobile: Verify & Status */}
-                          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                          <div className={`flex items-center gap-1 sm:gap-1.5 shrink-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                             {/* Motorist & Admin Incident Verification */}
                             {(() => {
                               const isPostAdminVerified = checkIsAdminVerified(item);
@@ -4788,8 +5009,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   }
 
                   const isNew = newlyAddedItemIds.has(item.id);
+                  const isStatusDropdownOpen = openStatusDropdownId === item.id;
                   const elements = [
-                    <div key={item.id} className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-md transition-all duration-500 relative ${rowBorder} ${ isNew ? 'animate-new-feed-highlight' : '' } ${ highlightedItemId === item.id ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/30 border-amber-400 bg-gradient-to-r from-amber-950/60 via-[#14120D] to-[#0F1115]' : item.highlightGold ? 'ring-2 ring-amber-400 border-amber-400 bg-[#14120D] shadow-[0_0_20px_rgba(245,158,11,0.25)]' : '' }`}>
+                    <div key={item.id} className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-md transition-all duration-500 relative ${isStatusDropdownOpen ? 'z-50 ring-1 ring-amber-500/40' : 'z-0'} ${rowBorder} ${ isNew ? 'animate-new-feed-highlight' : '' } ${ highlightedItemId === item.id ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/30 border-amber-400 bg-gradient-to-r from-amber-950/60 via-[#14120D] to-[#0F1115]' : item.highlightGold ? 'ring-2 ring-amber-400 border-amber-400 bg-[#14120D] shadow-[0_0_20px_rgba(245,158,11,0.25)]' : '' }`}>
                     {/* Primary Compact Card */}
                     <div className="space-y-2">
                       {/* Top Row: Badges, View Count, Timestamp & Media Thumbnail */}
@@ -4996,9 +5218,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                       </p>
 
                       {/* Bottom Action Menu */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 w-full min-w-0 border-t border-slate-800/80 pt-1.5">
+                      <div className={`flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 w-full min-w-0 border-t border-slate-800/80 pt-1.5 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                         {/* Line 1 on mobile: Verify & Status */}
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className={`flex items-center gap-1.5 shrink-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                           {/* Motorist & Admin Incident Verification */}
                           {(() => {
                             const isPostAdminVerified = checkIsAdminVerified(item);
@@ -5630,14 +5852,17 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   const inlineBannerToDisplay = shouldShowInlineAd ? inlineAds[Math.floor(index / 6) % inlineAds.length] : null;
 
                   const isNew = newlyAddedItemIds.has(item.id);
+                  const isStatusDropdownOpen = openStatusDropdownId === item.id;
                   const elements = [
-                    <div key={item.id}>
+                    <div key={item.id} className={isStatusDropdownOpen ? 'relative z-50' : 'relative z-0'}>
                       {inlineBannerToDisplay && (
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between px-1 text-xs">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/90 flex items-center space-x-1">
-                              <Megaphone className="w-3 h-3 text-amber-400" />
-                              <span>Sponsored Partner</span>
+                            <span className={`text-[10px] font-black uppercase tracking-wider flex items-center space-x-1 ${
+                              isLightCanvas ? 'text-black' : 'text-amber-400/90'
+                            }`}>
+                              <Megaphone className={`w-3 h-3 ${isLightCanvas ? 'text-black' : 'text-amber-400'}`} />
+                              <span className={isLightCanvas ? 'text-black font-black' : ''}>Partner Ad</span>
                             </span>
                             <button
                               type="button"
@@ -5645,10 +5870,12 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                                 if (onNavigateToAdvertiser) onNavigateToAdvertiser();
                                 else if (onSwitchTab) onSwitchTab('advertiser');
                               }}
-                              className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center space-x-1 transition cursor-pointer hover:underline"
+                              className={`text-xs font-black flex items-center space-x-1 transition cursor-pointer hover:underline ${
+                                isLightCanvas ? 'text-black hover:text-slate-800' : 'text-amber-400 hover:text-amber-300'
+                              }`}
                             >
-                              <span>Advertising Page</span>
-                              <ArrowRight className="w-3 h-3" />
+                              <span className={isLightCanvas ? 'text-black font-black' : ''}>Advertising Page</span>
+                              <ArrowRight className={`w-3 h-3 ${isLightCanvas ? 'text-black' : ''}`} />
                             </button>
                           </div>
                           <FeedAdBanner
@@ -5662,7 +5889,7 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           />
                         </div>
                       )}
-                      <div className={`bg-[#0F1115] border rounded-2xl p-4 sm:p-4.5 space-y-3 shadow-xl transition-all duration-500 relative flex flex-col justify-between flex-1 ${cardBorder} ${
+                      <div className={`bg-[#0F1115] border rounded-2xl p-4 sm:p-4.5 space-y-3 shadow-xl transition-all duration-500 relative flex flex-col justify-between flex-1 ${isStatusDropdownOpen ? 'z-50 ring-1 ring-amber-500/40' : ''} ${cardBorder} ${
                           isNew ? 'animate-new-feed-highlight' : ''
                         } ${
                           highlightedItemId === item.id
@@ -5956,9 +6183,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                     </div>
 
                     {/* Action Bar */}
-                    <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 text-xs w-full min-w-0">
+                    <div className={`pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 text-xs w-full min-w-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                       {/* Line 1 on mobile: Verify & Status */}
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className={`flex items-center gap-1.5 shrink-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                         {/* Motorist & Admin Incident Verification */}
                         {(() => {
                           const isPostAdminVerified = checkIsAdminVerified(item);
@@ -6276,8 +6503,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                 {filteredDispatches.flatMap((item, index) => {
                   const isNew = newlyAddedItemIds.has(item.id);
                   const isUserPost = Boolean((item as any).isUserPost) || isItemUserPost(item) || isItemUnverifiedUserPost(item) || item.source === 'community' || item.source === 'user';
+                  const isStatusDropdownOpen = openStatusDropdownId === item.id;
                   const elements = [
-                    <div key={item.id} className={`rounded-xl p-3.5 sm:p-4 shadow-sm transition space-y-1.5 ${ isNew ? 'animate-new-feed-highlight' : isUserPost ? 'border-2 border-orange-500 ring-2 ring-orange-500/50 shadow-xl shadow-orange-950/40 bg-[#0F1115]' : 'bg-[#0F1115] border border-slate-800/80 hover:border-slate-700/80' }`}>
+                    <div key={item.id} className={`rounded-xl p-3.5 sm:p-4 shadow-sm transition space-y-1.5 ${isStatusDropdownOpen ? 'relative z-50 ring-1 ring-amber-500/40' : 'relative z-0'} ${ isNew ? 'animate-new-feed-highlight' : isUserPost ? 'border-2 border-orange-500 ring-2 ring-orange-500/50 shadow-xl shadow-orange-950/40 bg-[#0F1115]' : 'bg-[#0F1115] border border-slate-800/80 hover:border-slate-700/80' }`}>
                       {/* Main Text */}
                       <h4 className="text-sm sm:text-[15px] font-bold text-white leading-snug tracking-tight flex items-center space-x-1.5 flex-wrap gap-y-1">
                         {isNew && (
@@ -6342,9 +6570,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                           <span>Alert Time: {formatReadableDateTime(item.timestamp)}</span>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 w-full min-w-0">
+                        <div className={`flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 w-full min-w-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                           {/* Line 1 on mobile: Verify & Status */}
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className={`flex items-center gap-1.5 shrink-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                             {/* Motorist & Admin Incident Verification */}
                             {(() => {
                               const isPostAdminVerified = checkIsAdminVerified(item);
@@ -6494,8 +6722,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   else if (isSOSAlert) rowBorder = 'border-rose-500/40 hover:border-rose-500/70 bg-gradient-to-r from-[#160E12] via-[#0F1115] to-[#0F1115]';
                   else if (isPotholeFix) rowBorder = 'border-sky-500/40 hover:border-sky-500/70 bg-[#0F1115]';
 
+                  const isStatusDropdownOpen = openStatusDropdownId === item.id;
                   const elements = [
-                    <div key={item.id} className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-md transition relative ${rowBorder} ${ isNew ? 'animate-new-feed-highlight' : '' }`}>
+                    <div key={item.id} className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-md transition relative ${isStatusDropdownOpen ? 'z-50 ring-1 ring-amber-500/40' : 'z-0'} ${rowBorder} ${ isNew ? 'animate-new-feed-highlight' : '' }`}>
                     <div className="space-y-2">
                       {/* Top Badges & Meta Row */}
                       <div className="flex items-start justify-between gap-2">
@@ -6584,9 +6813,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                       <AdminAuditBadge isAdmin={isUserAdmin} feedItem={item} variant="compact" className="mt-1" />
 
                       {/* Action buttons bar */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 w-full min-w-0 border-t border-slate-800/80 pt-1.5">
+                      <div className={`flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-1.5 w-full min-w-0 border-t border-slate-800/80 pt-1.5 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                         {/* Line 1 on mobile: Verify & Status */}
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className={`flex items-center gap-1.5 shrink-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                           {/* Motorist Incident Verification */}
                           <button
                             type="button"
@@ -6996,8 +7225,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                   const isPotholeFix = item.category === 'pothole' || item.content.toLowerCase().includes('pothole') || item.author.includes('POTHOLE');
                   const isSOSAlert = item.content.toLowerCase().includes('sos') || item.content.toLowerCase().includes('emergency') || item.content.toLowerCase().includes('motorist');
 
+                  const isStatusDropdownOpen = openStatusDropdownId === item.id;
                   const elements = [
-                    <div key={item.id} className={`bg-[#0F1115] border rounded-2xl p-4 sm:p-5 space-y-3 shadow-xl transition-all duration-500 ${ isNew ? 'animate-new-feed-highlight' : '' } ${ item.highlightGold ? 'ring-2 ring-amber-400 border-amber-400 bg-gradient-to-r from-[#1A140B] via-[#14120D] to-[#0F1115] shadow-[0_0_25px_rgba(245,158,11,0.3)]' : isUserPost ? 'border-2 border-orange-500 ring-2 ring-orange-500/50 shadow-xl shadow-orange-950/40 bg-[#0F1115]' : isAdminPost ? 'border-amber-500/40 bg-gradient-to-r from-[#0F1115] via-[#14120D] to-[#0F1115]' : isPotholeFix ? 'border-sky-500/30' : isSOSAlert ? 'border-rose-500/30' : 'border-slate-800 hover:border-slate-700' } ${ highlightedItemId === item.id ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/30 border-amber-400 bg-gradient-to-r from-[#1A140B] via-[#0F1115] to-[#0F1115]' : '' }`}>
+                    <div key={item.id} className={`bg-[#0F1115] border rounded-2xl p-4 sm:p-5 space-y-3 shadow-xl transition-all duration-500 relative ${isStatusDropdownOpen ? 'z-50 ring-1 ring-amber-500/40' : 'z-0'} ${ isNew ? 'animate-new-feed-highlight' : '' } ${ item.highlightGold ? 'ring-2 ring-amber-400 border-amber-400 bg-gradient-to-r from-[#1A140B] via-[#14120D] to-[#0F1115] shadow-[0_0_25px_rgba(245,158,11,0.3)]' : isUserPost ? 'border-2 border-orange-500 ring-2 ring-orange-500/50 shadow-xl shadow-orange-950/40 bg-[#0F1115]' : isAdminPost ? 'border-amber-500/40 bg-gradient-to-r from-[#0F1115] via-[#14120D] to-[#0F1115]' : isPotholeFix ? 'border-sky-500/30' : isSOSAlert ? 'border-rose-500/30' : 'border-slate-800 hover:border-slate-700' } ${ highlightedItemId === item.id ? 'ring-2 ring-amber-400 shadow-2xl shadow-amber-500/30 border-amber-400 bg-gradient-to-r from-[#1A140B] via-[#0F1115] to-[#0F1115]' : '' }`}>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
                       <div className="flex items-center space-x-2.5">
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
@@ -7170,9 +7400,9 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
                     {/* Admin Audit Trail for Staff Viewers */}
                     <AdminAuditBadge isAdmin={isUserAdmin} feedItem={item} variant="compact" className="my-1" />
 
-                    <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-2 text-xs text-slate-400 w-full min-w-0">
+                    <div className={`pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-2 text-xs text-slate-400 w-full min-w-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                       {/* Line 1 on mobile: Verify & Status */}
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className={`flex items-center gap-1.5 shrink-0 ${isStatusDropdownOpen ? 'relative z-50' : ''}`}>
                         {/* Motorist & Admin Incident Verification */}
                         {(() => {
                           const isPostAdminVerified = checkIsAdminVerified(item);
@@ -7937,5 +8167,6 @@ export const LiveFeedSection: React.FC<LiveFeedSectionProps> = ({
         onRefresh={refreshPresence}
       />
     </div>
+  </div>
   );
 };

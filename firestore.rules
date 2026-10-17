@@ -1,67 +1,201 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // App State: synced state partitions
-    match /app_state/{stateKey} {
-      allow read, write: if true;
+
+    // =========================================================================
+    // GLOBAL SECURITY GUARDS & REUSABLE ATTRIBUTE HELPERS
+    // =========================================================================
+
+    // Global Catch-all: Deny all by default
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Users
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.:@]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'laster.kpsse@gmail.com' ||
+        request.auth.token.email == 'charlesodendaal43@gmail.com' ||
+        request.auth.token.email == 'charles@salesbarn.co.za' ||
+        request.auth.token.email == 'charles2@salesbarn.co.za' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // =========================================================================
+    // 1. USER ACCOUNTS & PII DATA ISOLATION (ZERO UNPROTECTED READS)
+    // =========================================================================
     match /users/{userId} {
-      allow read, write: if true;
+      // PII Protection: Only the account owner or verified admin can read full user profile
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      // Create: User can create their own profile without self-assigned super_admin escalation
+      allow create: if isValidId(userId) && (
+        isAdmin() || (
+          isSignedIn() && 
+          request.auth.uid == userId &&
+          (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == 'user' || request.resource.data.role == 'advertiser')
+        )
+      );
+
+      // Update: User can update their own profile; Role changes require Admin
+      allow update: if isValidId(userId) && (
+        isAdmin() || (
+          isOwner(userId) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status'])
+        )
+      );
+
+      // Delete: Admin only
+      allow delete: if isValidId(userId) && isAdmin();
     }
 
-    // Community Heroes Reputation Profiles & Leaderboard
+    // =========================================================================
+    // 2. COMMUNITY HEROES & REPUTATION (PUBLIC READ, PROTECTED WRITE)
+    // =========================================================================
     match /community_heroes/{heroId} {
-      allow read, write: if true;
+      allow get, list: if isValidId(heroId);
+      allow create, update, delete: if isValidId(heroId) && isAdmin();
     }
 
-    // Adverts & Banner Rotation
-    match /adverts/{adId} {
-      allow read, write: if true;
-    }
-
-    // Ad Banners (individual persistent banners)
-    match /ad_banners/{bannerId} {
-      allow read, write: if true;
-    }
-
-    // Advertising Orders
-    match /ad_orders/{orderId} {
-      allow read, write: if true;
-    }
-    match /advertising_orders/{orderId} {
-      allow read, write: if true;
-    }
-
-    // Posts & Feed items
+    // =========================================================================
+    // 3. POSTS & LIVE TRAFFIC FEED ALERTS (PUBLIC READ, AUTH/ADMIN WRITE)
+    // =========================================================================
     match /posts/{postId} {
-      allow read, write: if true;
+      allow get, list: if isValidId(postId);
+      allow create: if isValidId(postId) && (
+        isAdmin() || (
+          isSignedIn() &&
+          request.resource.data.content is string &&
+          request.resource.data.content.size() <= 2000
+        )
+      );
+      allow update, delete: if isValidId(postId) && isAdmin();
     }
 
-    // Incident Categories & Alert Banners (individual persistent configurations)
-    match /category_configs/{categoryId} {
-      allow read, write: if true;
-    }
-
-    // Incident Reports
+    // =========================================================================
+    // 4. INCIDENT REPORTS & ROAD HAZARDS (PUBLIC READ, AUTH/AUTHOR/ADMIN WRITE)
+    // =========================================================================
     match /reports/{reportId} {
-      allow read, write: if true;
+      allow get, list: if isValidId(reportId);
+      allow create: if isValidId(reportId) && (
+        isAdmin() ||
+        (
+          request.resource.data.title is string &&
+          request.resource.data.title.size() <= 200
+        )
+      );
+      allow update: if isValidId(reportId) && (
+        isAdmin() ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid) ||
+        // Allow public upvotes count increment
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'verified'])
+      );
+      allow delete: if isValidId(reportId) && (
+        isAdmin() || (isSignedIn() && resource.data.authorId == request.auth.uid)
+      );
     }
 
-    // Lift Clubs & Work Commute Listings
+    // =========================================================================
+    // 5. CATEGORY & PANORAMIC BANNER CONFIGURATIONS (PUBLIC READ, ADMIN WRITE)
+    // =========================================================================
+    match /category_configs/{categoryId} {
+      allow get, list: if isValidId(categoryId);
+      allow create, update, delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    // =========================================================================
+    // 6. ADVERTS & AD BANNERS (PUBLIC READ, ADVERTISER OWNER/ADMIN WRITE)
+    // =========================================================================
+    match /adverts/{adId} {
+      allow get, list: if isValidId(adId);
+      allow create, update, delete: if isValidId(adId) && isAdmin();
+    }
+
+    match /ad_banners/{bannerId} {
+      allow get, list: if isValidId(bannerId);
+      allow create: if isValidId(bannerId) && (isAdmin() || isSignedIn());
+      allow update: if isValidId(bannerId) && (
+        isAdmin() || 
+        (isSignedIn() && resource.data.userId == request.auth.uid) ||
+        // Allow public impression/click counter increments
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['impressions', 'clicks', 'updatedAt'])
+      );
+      allow delete: if isValidId(bannerId) && (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
+    }
+
+    // =========================================================================
+    // 7. ADVERTISING ORDERS (OWNER/ADMIN ACCESS ONLY)
+    // =========================================================================
+    match /ad_orders/{orderId} {
+      allow get: if isValidId(orderId) && (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
+      allow list: if isAdmin() || isSignedIn();
+      allow create: if isValidId(orderId) && (isAdmin() || isSignedIn());
+      allow update, delete: if isValidId(orderId) && isAdmin();
+    }
+
+    match /advertising_orders/{orderId} {
+      allow get: if isValidId(orderId) && (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
+      allow list: if isAdmin() || isSignedIn();
+      allow create: if isValidId(orderId) && (isAdmin() || isSignedIn());
+      allow update, delete: if isValidId(orderId) && isAdmin();
+    }
+
+    // =========================================================================
+    // 8. LIFT CLUBS & COMMUTE LISTINGS (AUTHENTICATED READ, OWNER WRITE)
+    // =========================================================================
     match /lift_clubs/{liftId} {
-      allow read, write: if true;
+      allow get, list: if isValidId(liftId);
+      allow create: if isValidId(liftId) && isSignedIn();
+      allow update, delete: if isValidId(liftId) && (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
     }
 
-    // User Identity & Vehicle Verifications
+    // =========================================================================
+    // 9. IDENTITY & VEHICLE VERIFICATION DOCS (PII PROTECTED: OWNER/ADMIN ONLY)
+    // =========================================================================
     match /verifications/{verificationId} {
-      allow read, write: if true;
+      allow get: if isValidId(verificationId) && (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
+      allow list: if isAdmin();
+      allow create: if isValidId(verificationId) && isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isValidId(verificationId) && isAdmin();
     }
 
-    // Emergency SOS Calls & Dispatches
+    // =========================================================================
+    // 10. EMERGENCY SOS DISPATCHES (DISPATCH/ADMIN/CALLER RESTRICTED)
+    // =========================================================================
     match /sos/{sosId} {
-      allow read, write: if true;
+      allow get: if isValidId(sosId) && (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid));
+      allow list: if isAdmin();
+      allow create: if isValidId(sosId) && (
+        request.resource.data.name is string &&
+        request.resource.data.phone is string &&
+        request.resource.data.latitude is number &&
+        request.resource.data.longitude is number
+      );
+      allow update: if isValidId(sosId) && (
+        isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid)
+      );
+      allow delete: if isValidId(sosId) && isAdmin();
+    }
+
+    // =========================================================================
+    // 11. INTERNAL SERVER APP STATE CACHE (ADMIN/SERVER ONLY)
+    // =========================================================================
+    match /app_state/{stateKey} {
+      allow get, list: if isValidId(stateKey);
+      allow create, update, delete: if isValidId(stateKey) && isAdmin();
     }
   }
 }

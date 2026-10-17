@@ -356,56 +356,8 @@ async function fetchRegionDataInBrowser(regionName: SAProvinceQuery): Promise<an
     // try direct proxies
   }
 
-  const targetUrl = ITRAFFIC_POST_ENDPOINT;
-  const payload = {
-    draw: 1,
-    start: 0,
-    length: 50,
-    search: { value: "", regex: false },
-    filters: [{ i: 1, s: regionName }],
-    order: [{ column: 0, dir: "desc" }]
-  };
-
-  // Try allorigins proxy
-  try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl + `?draw=1&start=0&length=50&filters%5B0%5D%5Bi%5D=1&filters%5B0%5D%5Bs%5D=${encodeURIComponent(regionName)}`)}`;
-    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && typeof data.contents === 'string') {
-        try {
-          const parsed = JSON.parse(data.contents);
-          if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
-            return parsed.data.map((item: any) => ({ ...item, _region: regionName }));
-          }
-        } catch {
-          // not JSON
-        }
-      }
-    }
-  } catch {
-    // failover
-  }
-
-  // Try codetabs proxy
-  try {
-    const codetabsUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-    const res = await fetch(codetabsUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(6000)
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.data) && data.data.length > 0) {
-        return data.data.map((item: any) => ({ ...item, _region: regionName }));
-      }
-    }
-  } catch {
-    // continue
-  }
-
+  // Public CORS proxies (allorigins, codetabs) have severe rate limits and trigger 429 errors when queried for 9 provinces.
+  // We strictly rely on the server-side proxy which manages authenticated sessions and rate limits safely.
   return [];
 }
 

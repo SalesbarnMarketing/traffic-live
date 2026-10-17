@@ -1,14 +1,14 @@
-# Release Notes — LiveTrafficNPC v2.8.0
+# Release Notes — LiveTrafficNPC v2.13.0
 
-**Release Version:** v2.8.0  
-**Release Date:** September 16, 2026  
+**Release Version:** v2.13.0  
+**Release Date:** October 4, 2026  
 **Target Environment:** Cloud Run Production & Development (`ai-studio-livetraffic-101b105b-68d5-43ee-8a17-beaded637fb4`)  
 
 ---
 
 ## Executive Summary
 
-Version 2.8.0 delivers critical improvements to live feed timeliness, user experience polish, visual layout consistency, and foundational database persistence. This release addresses stale highlight retention by tightening the live feed window from 24 hours down to **6 hours**, refines feed banner controls and badge layouts, sets **Bullet Points** as the default feed presentation, and establishes hardened, multi-tier persistence guarantees ensuring user accounts and credentials remain 100% safe across container deployments.
+Version 2.13.0 introduces the **Floating WhatsApp Direct Quick Action Button** (+27 67 708 3048) situated directly above the floating report button on Feeds, refreshes the **Techrix365 Custom System Builder** partner card copy and inquiry integration, and enhances production container deployment resilience.
 
 ---
 

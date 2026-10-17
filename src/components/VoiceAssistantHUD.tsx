@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   MapPin
 } from 'lucide-react';
+import { WhatsAppIcon } from './WhatsAppIcon';
 import { VoiceCommandAction } from '../hooks/useVoiceAssistant';
 
 interface VoiceAssistantHUDProps {
@@ -172,7 +173,34 @@ export const VoiceAssistantHUD: React.FC<VoiceAssistantHUDProps> = ({
         </div>
       )}
 
-      {/* 3. Floating Action Controls: Dedicated Voice Orb + Primary Plus Action */}
+      {/* 3. Floating WhatsApp Direct Chat Action Button (+27 67 708 3048) - Hidden on Map screen */}
+      {activeTab !== 'map' && (
+        <div className="pointer-events-auto relative group">
+          <a
+            href="https://wa.me/27677083048?text=Hello%20Live%20Traffic%20NPC"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center font-black transition-all duration-200 cursor-pointer shadow-2xl border-2 active:scale-95 bg-[#25D366] hover:bg-[#20bd5a] text-white border-emerald-200/90 shadow-emerald-950/80 hover:scale-105"
+            title="Chat with Live Traffic NPC on WhatsApp (+27 67 708 3048)"
+            aria-label="Chat with Live Traffic NPC on WhatsApp (+27 67 708 3048)"
+          >
+            <WhatsAppIcon variant="monochrome" className="w-6 h-6 sm:w-6.5 sm:h-6.5 text-white fill-current" />
+            
+            {/* Subtle online pulse indicator beacon */}
+            <span className="absolute top-0 right-0 flex h-3.5 w-3.5 -mt-0.5 -mr-0.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 border-2 border-[#070A10]"></span>
+            </span>
+          </a>
+
+          {/* Hover Tooltip on Desktop */}
+          <div className="absolute right-full mr-2.5 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center px-2.5 py-1 bg-[#070A10]/95 border border-emerald-500/50 rounded-xl text-white text-[11px] font-bold shadow-xl whitespace-nowrap pointer-events-none">
+            <span className="text-emerald-400 font-extrabold mr-1">WhatsApp:</span> +27 67 708 3048
+          </div>
+        </div>
+      )}
+
+      {/* 4. Floating Action Controls: Dedicated Voice Orb + Primary Plus Action */}
       <div className="pointer-events-auto flex items-center space-x-2">
         {/* Dedicated Voice Assistant / Mic Orb (Hidden on Feeds Screen) */}
         {activeTab !== 'feed' && (
@@ -208,32 +236,24 @@ export const VoiceAssistantHUD: React.FC<VoiceAssistantHUDProps> = ({
           </button>
         )}
 
-        {/* Primary PLUS Button: In Map Mode = Pin Where You Are; Otherwise = Normal Report Routine */}
-        <div className="relative group">
-          <button
-            type="button"
-            onClick={() => {
-              if (activeTab === 'map') {
-                // When using map: pin where you are on the map and open quick report options!
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('livetraffic:open-drop-pin', { detail: { openQuickReport: true } }));
-                } else if (onOpenReportModal) {
-                  onOpenReportModal({ autoDetectGps: true, onScene: true });
+        {/* Primary PLUS / Post Hazard Button: Hidden on Map screen as requested */}
+        {activeTab !== 'map' && (
+          <div className="relative group">
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenReportModal) {
+                  onOpenReportModal({ autoDetectGps: true, onScene: true, forceFullModal: true });
                 }
-                return;
-              }
-              // Otherwise: open report routine with GPS auto-detection and on-scene set to true
-              if (onOpenReportModal) {
-                onOpenReportModal({ autoDetectGps: true, onScene: true, forceFullModal: true });
-              }
-            }}
-            className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-black transition cursor-pointer shadow-2xl border-2 active:scale-95 bg-gradient-to-tr from-[#D4A237] via-amber-400 to-yellow-200 text-[#070A10] border-amber-200 shadow-[#D4A237]/40 hover:brightness-110"
-            title={activeTab === 'map' ? 'Pin where you are on the map' : 'Report Road Hazard (Normal report routine)'}
-            aria-label={activeTab === 'map' ? 'Pin Location on Map' : 'Report Road Hazard'}
-          >
-            <Plus className="w-6 h-6 sm:w-7 sm:h-7 text-[#070A10] stroke-[3]" />
-          </button>
-        </div>
+              }}
+              className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full flex items-center justify-center font-black transition cursor-pointer shadow-2xl border-2 active:scale-95 bg-gradient-to-tr from-[#D4A237] via-amber-400 to-yellow-200 text-[#070A10] border-amber-200 shadow-[#D4A237]/40 hover:brightness-110"
+              title="Report Road Hazard (Normal report routine)"
+              aria-label="Report Road Hazard"
+            >
+              <Plus className="w-6 h-6 sm:w-7 sm:h-7 text-[#070A10] stroke-[3]" />
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

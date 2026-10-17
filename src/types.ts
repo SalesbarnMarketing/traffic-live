@@ -246,6 +246,8 @@ export interface FeedItem {
   upvotes?: number;
   downvotes?: number;
   confirmations?: number;
+  isOlderData?: boolean;
+  isHistorical?: boolean;
   // Clearance and Resolution tracking
   cleared?: boolean;
   clearedAt?: string;

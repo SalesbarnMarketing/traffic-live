@@ -521,7 +521,8 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   };
 
   const getRoleBadge = (role?: UserRole, email?: string) => {
-    if (email === 'charlesodendaal43@gmail.com' || role === 'super_admin') {
+    const cleanEmail = (email || '').toLowerCase().trim();
+    if (cleanEmail === 'charlesodendaal43@gmail.com' || cleanEmail === 'sylvester@trafficlive.co.za' || role === 'super_admin') {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40">
           <Shield className="w-3 h-3 mr-1 text-amber-400" />
@@ -939,7 +940,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                     </tr>
                   ) : (
                     filteredUsers.map((user) => {
-                      const isPrimaryChiefAdmin = user.email.toLowerCase() === 'charlesodendaal43@gmail.com';
+                      const isPrimaryChiefAdmin = user.email.toLowerCase() === 'charlesodendaal43@gmail.com' || user.email.toLowerCase() === 'sylvester@trafficlive.co.za' || user.role === 'super_admin';
                       const isSuspended = user.status === 'suspended';
                       const isPending = user.responderApprovalStatus === 'pending';
 
@@ -1160,7 +1161,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
               </div>
             ) : (
               filteredUsers.map((user) => {
-                const isPrimaryChiefAdmin = user.email.toLowerCase() === 'charlesodendaal43@gmail.com';
+                const isPrimaryChiefAdmin = user.email.toLowerCase() === 'charlesodendaal43@gmail.com' || user.email.toLowerCase() === 'sylvester@trafficlive.co.za' || user.role === 'super_admin';
                 const isSuspended = user.status === 'suspended';
                 const isPending = user.responderApprovalStatus === 'pending';
 
@@ -2010,7 +2011,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   <select
                     value={editRole}
                     onChange={(e) => setEditRole(e.target.value as UserRole)}
-                    disabled={editTargetUser.email.toLowerCase() === 'charlesodendaal43@gmail.com'}
+                    disabled={editTargetUser.email.toLowerCase() === 'charlesodendaal43@gmail.com' || editTargetUser.email.toLowerCase() === 'sylvester@trafficlive.co.za'}
                     className="w-full bg-[#0A0B0D] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 disabled:opacity-60"
                   >
                     <option value="super_admin">Chief Admin</option>
@@ -2027,7 +2028,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   <select
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value as 'active' | 'suspended')}
-                    disabled={editTargetUser.email.toLowerCase() === 'charlesodendaal43@gmail.com'}
+                    disabled={editTargetUser.email.toLowerCase() === 'charlesodendaal43@gmail.com' || editTargetUser.email.toLowerCase() === 'sylvester@trafficlive.co.za'}
                     className="w-full bg-[#0A0B0D] border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 disabled:opacity-60"
                   >
                     <option value="active">Active</option>

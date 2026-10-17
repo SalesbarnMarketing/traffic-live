@@ -142,7 +142,7 @@ export interface LiveFeedWindowBounds {
 
 export const getLiveFeedWindowBounds = (
   feedItems: FeedItem[] = [],
-  defaultWindowHours: number = 6
+  defaultWindowHours: number = 2
 ): LiveFeedWindowBounds => {
   const now = Date.now();
   const windowStart = now - defaultWindowHours * 60 * 60 * 1000;
@@ -158,65 +158,82 @@ export const getLiveFeedWindowBounds = (
 
 /**
  * Check if a single FeedItem is within the active live feed time frame.
- * If an item is older than the live feed window start (6 hours), returns false (dropped).
+ * If no items fall in the window, permits older data so the feed is never empty.
  */
 export const isItemInLiveFeedWindow = (
   item: FeedItem,
   allFeedItems: FeedItem[] = [],
-  defaultWindowHours: number = 6
+  defaultWindowHours: number = 2
 ): boolean => {
   const itemTime = getItemTimestampValue(item);
   if (!itemTime) return true; // If no timestamp, default keep
 
   const { windowStart, windowEnd } = getLiveFeedWindowBounds(allFeedItems, defaultWindowHours);
 
-  // If item is older than the live feed window start, it is dropped
-  if (itemTime < windowStart) {
-    return false;
+  // If item is within the rolling 2-hour window
+  if (itemTime >= windowStart && itemTime <= windowEnd) {
+    return true;
   }
 
-  // If item is far in the future (> 2 hours ahead due to bad clock), treat with caution
-  if (itemTime > windowEnd + 2 * 60 * 60 * 1000) {
-    return false;
+  // "Do not let the feed be empty, use older data":
+  // If no items in the entire collection fall into the fresh window, keep older items!
+  const hasAnyFresh = allFeedItems.some(i => {
+    const t = getItemTimestampValue(i);
+    return t >= windowStart && t <= windowEnd;
+  });
+
+  if (!hasAnyFresh) {
+    return true;
   }
 
-  return true;
+  return false;
 };
 
 /**
- * Filter a list of FeedItems so that all items (including Admin Posts,
- * community reports, and scraped events) are strictly kept ONLY if they
- * fall inside the rolling 6-hour live feed window.
- * Old posts outside the 6-hour window are dropped.
+ * Filter a list of FeedItems with priority to the rolling live window,
+ * but NEVER leaves the feed empty — seamlessly falls back to older data!
  */
 export const filterFeedItemsInLiveWindow = (
   items: FeedItem[] = [],
-  defaultWindowHours: number = 6
+  defaultWindowHours: number = 2
 ): FeedItem[] => {
   if (!items || items.length === 0) return [];
 
   const { windowStart } = getLiveFeedWindowBounds(items, defaultWindowHours);
 
-  return items.filter((item) => {
+  const withinWindow = items.filter((item) => {
     const itemTime = getItemTimestampValue(item);
     if (!itemTime) return true;
-
-    // Items outside the rolling window (e.g. 6 hours) are dropped
-    if (itemTime < windowStart) {
-      return false; // Dropped: outside rolling window
-    }
-
-    return true;
+    return itemTime >= windowStart;
   });
+
+  // "Do not let the feed be empty, use older data":
+  // If no items fall inside the strict window, use older data sorted newest first!
+  if (withinWindow.length === 0) {
+    return [...items].sort((a, b) => getItemTimestampValue(b) - getItemTimestampValue(a));
+  }
+
+  // If there are fewer than 5 items in the fresh window, also append older items
+  // so the feed is informative and never sparse!
+  if (withinWindow.length < 5 && items.length > withinWindow.length) {
+    const seen = new Set(withinWindow.map(i => i.id));
+    const older = items
+      .filter(i => !seen.has(i.id))
+      .sort((a, b) => getItemTimestampValue(b) - getItemTimestampValue(a));
+    return [...withinWindow, ...older.slice(0, 15 - withinWindow.length)];
+  }
+
+  return withinWindow;
 };
 
 /**
  * Split admin posts into active within live feed window and expired/dropped outside window.
+ * If active is empty, uses older posts so admin channel is never empty.
  */
 export const separateAdminPostsByWindow = (
   adminPosts: FeedItem[] = [],
   allFeedItems: FeedItem[] = [],
-  defaultWindowHours: number = 6
+  defaultWindowHours: number = 2
 ): { activePosts: FeedItem[]; expiredPosts: FeedItem[] } => {
   const { windowStart } = getLiveFeedWindowBounds(allFeedItems, defaultWindowHours);
 
@@ -230,6 +247,11 @@ export const separateAdminPostsByWindow = (
     } else {
       expiredPosts.push(post);
     }
+  }
+
+  // "Do not let the feed be empty, use older data":
+  if (activePosts.length === 0 && expiredPosts.length > 0) {
+    return { activePosts: [...expiredPosts], expiredPosts: [] };
   }
 
   return { activePosts, expiredPosts };

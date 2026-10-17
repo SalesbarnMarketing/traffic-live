@@ -211,6 +211,25 @@ export async function saveSingleUserToFirestore(user: any): Promise<void> {
   try {
     const cleanId = user.email.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "_");
     await withTimeout(setDoc(doc(db, "users", cleanId), sanitizeForFirestore(user), { merge: true }), 4000);
+
+    // Also update app_state/users so real-time listeners and boot hydration immediately see the updated status
+    try {
+      const stateDocRef = doc(db, "app_state", "users");
+      const snap = await withTimeout(getDoc(stateDocRef), 3000);
+      if (snap.exists()) {
+        const data = snap.data();
+        let list: any[] = Array.isArray(data?.registeredUsers) ? [...data.registeredUsers] : [];
+        const idx = list.findIndex(u => u && u.email && u.email.toLowerCase() === user.email.toLowerCase());
+        if (idx !== -1) {
+          list[idx] = { ...list[idx], ...user };
+        } else {
+          list.push(user);
+        }
+        await withTimeout(setDoc(stateDocRef, { registeredUsers: sanitizeForFirestore(list), count: list.length, updatedAt: new Date().toISOString() }, { merge: true }), 4000);
+      }
+    } catch {
+      // Non-fatal fallback
+    }
   } catch (err: any) {
     handleQuotaError(err, `saveSingleUserToFirestore (${user.email})`);
   }
@@ -1042,7 +1061,7 @@ export async function fetchRemoteCategoriesOnce(): Promise<{
 // ----------------------------------------------------
 let cachedFeeds: any[] | null = null;
 let lastFeedsFetch = 0;
-const FEEDS_CACHE_TTL = 30000; // 30 seconds cache to protect quota limits
+const FEEDS_CACHE_TTL = 300000; // 5 minutes cache (300,000ms) to strictly protect Firestore quota limits
 
 export async function fetchRemoteFeedItemsOnce(force = false): Promise<any[]> {
   const now = Date.now();

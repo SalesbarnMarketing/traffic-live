@@ -105,7 +105,7 @@ export const HighwayTravelTimesSection: React.FC<HighwayTravelTimesSectionProps>
     const timer = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       fetchTravelTimes();
-    }, 120000);
+    }, 240000); // 4 minutes
     return () => clearInterval(timer);
   }, []);
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import { IncidentReport, EmergencySOS, RegisteredUser, FeedItem, TripBuddyPlan } from '../types';
-import { formatSATime, formatReadableDateTime, getTimeAgo, getSOSTimingBreakdown } from '../utils/dateParser';
+import { formatSATime, formatReadableDateTime, getTimeAgo, getSOSTimingBreakdown, parseDateToMillis } from '../utils/dateParser';
 import { 
   AlertTriangle, Car, Construction, AlertOctagon, Layers, Compass, PlusCircle, 
   ExternalLink, ChevronLeft, ChevronRight, ChevronUp, Globe, Building2, FileText, 
@@ -768,7 +768,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     setQuickToast({
       message: isActualAdmin
         ? `📍 ${meta.icon} ${meta.title} is now live on the map!`
-        : `📍 ${meta.icon} ${meta.title} posted to map! (User Report • Not Verified)`
+        : `📍 ${meta.icon} ${meta.title} dispatched to map! (User Report • Not Verified)`
     });
 
     setTimeout(() => {
@@ -2439,7 +2439,7 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
           ${(rep.postedByUserName || rep.reporterName || rep.createdByAdminName) ? `
             <div class="bg-slate-50 border border-slate-200 text-slate-800 text-[10px] px-2 py-1 rounded-md font-medium mb-1.5 flex items-center justify-between">
               <div class="flex items-center space-x-1">
-                <span class="font-bold text-slate-900">${rep.verifiedByAdmin ? '🛡️ Posted by Admin:' : '👤 Reported by User:'}</span>
+                <span class="font-bold text-slate-900">${rep.verifiedByAdmin ? '🛡️ Admin Dispatch:' : '👤 Reported by User:'}</span>
                 <span class="font-semibold text-slate-800">${(() => {
                   const fName = (rep.postedByUserName || rep.createdByAdminName || rep.reporterName || '').trim();
                   const sName = (rep.postedByUserSurname || rep.reporterSurname || '').trim();
@@ -2642,6 +2642,19 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
         if (!feed || !feed.id || isGloballyDeleted(feed.id)) {
           return;
         }
+        // Map: Don't show WhatsApp or post feed items on the map
+        if (feed.source === 'whatsapp' || (feed as any).source === 'post' || (feed as any).source === 'social_post') {
+          return;
+        }
+        // Strict 2-Hour Auto-Clear Rule: Exclude expired pins (>2 hours) or cleared/resolved items from live map
+        const feedTime = parseDateToMillis(feed.timestamp) || parseDateToMillis(feed.startTime) || parseDateToMillis(feed.lastUpdated) || 0;
+        const feedAgeMs = currentMapTime - feedTime;
+        if (feedTime > 0 && !isNaN(feedAgeMs) && feedAgeMs >= TWO_HOURS_MS) {
+          return;
+        }
+        if (feed.isCleared || feed.cleared || feed.status === 'cleared' || feed.status === 'resolved' || (feed as any).isOlderData) {
+          return;
+        }
         if (feed.latitude === undefined || feed.longitude === undefined || isNaN(feed.latitude) || isNaN(feed.longitude)) {
           return;
         }
@@ -2675,7 +2688,7 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
         } else if (isAdmin) {
           bgClass = 'bg-gradient-to-br from-amber-500 to-amber-600 text-slate-950 ring-2 ring-amber-400 shadow-amber-500/50';
           iconSymbol = '🛡️';
-          badgeText = 'ADMIN POST';
+          badgeText = 'ADMIN DISPATCH';
         } else if (isCrash) {
           bgClass = 'bg-rose-600 text-white';
           iconSymbol = '💥';
@@ -2719,7 +2732,7 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
           <div class="p-2.5 max-w-xs font-sans text-slate-900">
             <div class="flex items-center space-x-1 mb-1.5">
               <span class="${isAdmin ? 'bg-amber-100 text-amber-950 border border-amber-400' : 'bg-cyan-100 text-cyan-900'} text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                ${isAdmin ? '🛡️ OFFICIAL ADMIN POST' : 'Live Traffic Alert'}
+                ${isAdmin ? '🛡️ OFFICIAL ADMIN ALERT' : 'Live Traffic Alert'}
               </span>
               <span class="bg-slate-100 text-slate-700 text-[10px] font-bold px-1.5 py-0.5 rounded">
                 ${badgeText}
@@ -2733,7 +2746,7 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
             
             ${feed.postedByAdminName ? `
               <div class="bg-blue-50 border border-blue-200 text-blue-900 text-[10px] px-2 py-1 rounded-md font-medium mb-1.5 flex items-center space-x-1">
-                <span class="font-bold">🛡️ Posted by:</span>
+                <span class="font-bold">🛡️ Dispatched by:</span>
                 <span>${feed.postedByAdminName}</span>
                 ${feed.postedByAdminRole ? `<span class="bg-blue-200/80 text-blue-950 text-[9px] px-1 py-0.2 rounded font-bold uppercase">${feed.postedByAdminRole.replace('_', ' ')}</span>` : ''}
               </div>
@@ -3795,15 +3808,6 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
         >
           techrix365.com
         </a>
-        <span>•</span>
-        <a 
-          href="https://wa.me/27608645692?text=Hello%20Charles%2C%20I%20saw%20LiveTraffic%20and%20would%20like%20to%20inquire%20about%20getting%20an%20app%20developed%20by%20Techrix365" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="text-[#25D366] hover:text-emerald-300 hover:underline font-bold"
-        >
-          Need an app? WhatsApp
-        </a>
       </div>
 
       {/* On-Map Quick 1-Tap Hazard Dispatch Bar for Pinned Spot (Direct 1-Tap on Map, No Modal Required) */}
@@ -3865,7 +3869,6 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
           <div className="text-[10px] font-black text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
             <span className="flex items-center gap-1">
               <span>⚡ 1-Tap Hazard Dispatch</span>
-              <span className="text-emerald-400 font-normal">(Instant Post)</span>
             </span>
             <span className="text-amber-400 font-mono text-[9px]">
               {isUserAdmin ? '🛡️ Admin Live Broadcast' : '👤 User Pin (Unverified)'}
@@ -4121,7 +4124,7 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-black uppercase tracking-wider text-slate-950 leading-tight">
-                    📍 Post Hazard / Drop 'n Pin
+                    📍 Drop 'n Pin / Hazard Dispatch
                   </h3>
                   <p className="text-xs font-extrabold text-slate-900 mt-0.5">
                     1-Tap Instant Dispatch or Custom Map Pin
@@ -4182,7 +4185,7 @@ Estimated travel delay for visible roads in view: ${visible.length > 1 ? '10-20 
             {/* 1-Tap Hazard Buttons */}
             <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
               <p className="text-xs text-slate-300 font-semibold text-center uppercase tracking-wide">
-                Tap hazard icon to post instantly at {pinnedCoords ? (pinnedRoadName || 'pinned map spot') : 'your GPS location'}:
+                Tap hazard icon to dispatch instantly at {pinnedCoords ? (pinnedRoadName || 'pinned map spot') : 'your GPS location'}:
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
